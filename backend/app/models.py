@@ -1,5 +1,6 @@
 import uuid
-
+import enum
+from typing import Literal
 from pydantic import EmailStr
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -43,8 +44,7 @@ class UpdatePassword(SQLModel):
 class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hashed_password: str
-    items: list["Item"] = Relationship(back_populates="owner", cascade_delete=True)
-
+    calculations: list["Calculation"] = Relationship(back_populates="owner", cascade_delete=True)
 
 # Properties to return via API, id is always required
 class UserPublic(UserBase):
@@ -55,40 +55,46 @@ class UsersPublic(SQLModel):
     data: list[UserPublic]
     count: int
 
-
+class OperationType(str, enum.Enum):
+    add = "add"
+    sub = "sub"
+    mul = "mul"
+    div = "div"
 # Shared properties
-class ItemBase(SQLModel):
-    title: str = Field(min_length=1, max_length=255)
-    description: str | None = Field(default=None, max_length=255)
-
-
+class CalculationBase(SQLModel):
+    result: int | None = Field(default=None)
+    operand_a: int | None = Field(default=None)
+    operand_b: int | None = Field(default=None)
+    operation: OperationType | None = Field(default=None)
 # Properties to receive on item creation
-class ItemCreate(ItemBase):
-    pass
 
 
 # Properties to receive on item update
-class ItemUpdate(ItemBase):
-    title: str | None = Field(default=None, min_length=1, max_length=255)  # type: ignore
+class CalculationUpdate(SQLModel):
+    operand_a: int
+    operand_b: int 
+    operation: OperationType 
 
+class CalculationCreate(CalculationUpdate):
+    pass
 
 # Database model, database table inferred from class name
-class Item(ItemBase, table=True):
+class Calculation(CalculationBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     owner_id: uuid.UUID = Field(
         foreign_key="user.id", nullable=False, ondelete="CASCADE"
     )
-    owner: User | None = Relationship(back_populates="items")
+    owner: User | None = Relationship(back_populates="calculations")
 
 
 # Properties to return via API, id is always required
-class ItemPublic(ItemBase):
+class CalculationPublic(CalculationBase):
     id: uuid.UUID
     owner_id: uuid.UUID
 
 
-class ItemsPublic(SQLModel):
-    data: list[ItemPublic]
+class CalculationsPublic(SQLModel):
+    data: list[CalculationPublic]
     count: int
 
 
