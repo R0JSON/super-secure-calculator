@@ -22,7 +22,7 @@ services:
     image: adminer
     restart: always
     ports:
-      - 8081:80
+      - 8081:8080
     depends_on:
       - db
     environment:
@@ -88,6 +88,20 @@ services:
 
     build:
       context: ./backend
+    # ---- NEW FRONTEND SERVICE ----
+  frontend:
+    restart: always
+    # Build the image from the frontend directory
+    build:
+      context: ./frontend
+      # Pass the API URL to the Dockerfile at build time
+      args:
+        VITE_API_URL: http://localhost:${BACKEND_PORT:-8080}/api/v1
+    ports:
+      # Map the host port (from .env) to the container port 80 (Nginx)
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - backend
 
 volumes:
   app-db-data:
