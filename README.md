@@ -1,7 +1,3 @@
-Of course! A good README is essential for any project. Here is a friendly, comprehensive, and well-structured README.md file tailored specifically for your "Super Secure Calculator" project.
-
-You can copy and paste this content directly into a README.md file in your project's root directory.
-
 🧮 Super Secure Calculator
 
 Welcome! This isn't just any calculator... it's a Super Secure one! This project is a full-stack web application featuring a modern FastAPI backend and a responsive React frontend, all neatly containerized with Docker.
