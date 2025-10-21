@@ -109,26 +109,24 @@ BACKEND_PORT	The port on your host machine to expose the backend API.	8080
 
 A high-level overview of the project's directory structure:
 
-code
-Code
-download
-content_copy
-expand_less
-.
-├── backend/            # FastAPI Application Source Code
-│   ├── app/            # Main application module
-│   ├── alembic/        # Database migration scripts
-│   ├── scripts/        # Helper scripts (e.g., prestart.sh)
-│   └── Dockerfile      # Dockerfile for the backend service
+```
+├── backend/                  # FastAPI Application Source Code
+│   ├── app/                  # Main application module
+│   ├── alembic/              # Database migration scripts
+│   ├── scripts/              # Helper scripts (e.g., prestart.sh)
+│   └── Dockerfile            # Dockerfile for the backend service
 │
-├── frontend/           # React Application Source Code
-│   ├── src/            # Main application source
-│   ├── Dockerfile      # Multi-stage Dockerfile for the frontend
-│   └── nginx.conf      # Nginx configuration for serving the React app
+├── frontend/                 # React Application Source Code
+│   ├── public/               # Static assets
+│   ├── src/                  # Main React application source
+│   ├── Dockerfile            # Multi-stage Dockerfile for the frontend
+│   └── nginx.conf            # Nginx configuration for serving the React app
 │
-├── .env                # Your local environment configuration (ignored by Git)
-├── .env.example        # Template for the .env file
-└── docker-compose.yml  # Defines all the services, networks, and volumes
+├── .env                      # Your local environment configuration (ignored by Git)
+├── .env.example              # Template for the .env file
+├── docker-compose.yml        # Defines all services, networks, and volumes
+└── README.md                 # This file
+```
 📜 License
 
 This project is licensed under the MIT License. See the LICENSE file for details.
