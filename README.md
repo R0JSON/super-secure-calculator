@@ -1,128 +1,126 @@
-🧮 Super Secure Calculator
+---
 
-Welcome! This isn't just any calculator... it's a Super Secure one! This project is a full-stack web application featuring a modern FastAPI backend and a responsive React frontend, all neatly containerized with Docker.
+# 🧮 Super Secure Calculator
 
-The application provides a robust user authentication system and a simple, secure way to perform and save calculations. It's built as a boilerplate and learning tool for modern web development practices.
+Welcome! This isn't just any calculator — it's a **Super Secure** one.
+This project is a **full-stack web application** featuring a modern **FastAPI** backend and a responsive **React** frontend, all neatly containerized with **Docker**.
 
-✨ Features
+The app provides a **secure authentication system** and a simple, private way to perform and save calculations.
+It’s designed as both a **boilerplate** and a **learning tool** for modern web development.
 
-Secure User Authentication: JWT-based login and registration.
+---
 
-Full User Management: Create, read, update, and delete users.
+## ✨ Features
 
-Profile Management: Users can view and update their own profiles and passwords.
+* 🔐 **Secure User Authentication** — JWT-based login and registration
+* 👥 **Full User Management** — Create, read, update, and delete users
+* 🧑‍💻 **Profile Management** — Users can view and update their own profiles and passwords
+* 🧾 **Calculation History** — Users can perform calculations and view their history
+* 🧭 **Interactive API Docs** — Auto-generated Swagger UI documentation
+* 🐳 **Fully Containerized** — Backend, frontend, and database run in Docker
+* 🔄 **Database Migrations** — Managed with Alembic
 
-Calculation History: Users can perform calculations and view their history.
+---
 
-Interactive API Docs: Automatic, interactive API documentation via Swagger UI.
+## 🛠️ Tech Stack
 
-Fully Containerized: The entire stack (backend, frontend, database) runs in Docker for easy setup and deployment.
+| Area         | Technology                        |
+| ------------ | --------------------------------- |
+| **Backend**  | FastAPI, Python 3.10, uv, Alembic |
+| **Frontend** | React (Vite), Axios, Nginx        |
+| **Database** | PostgreSQL                        |
+| **DevOps**   | Docker & Docker Compose           |
 
-Database Migrations: Uses Alembic to manage database schema changes.
+---
 
-🛠️ Tech Stack
+## 🚀 Getting Started
 
-This project is built with a modern and powerful set of technologies:
+### Prerequisites
 
-Area	Technology
-Backend	FastAPI, Python 3.10, uv, Alembic
-Frontend	React (with Vite), Axios, Nginx
-Database	PostgreSQL
-DevOps	Docker & Docker Compose
-🚀 Getting Started
+Make sure you have **Docker** and **Docker Compose** installed on your machine.
 
-Getting the project up and running is simple, thanks to Docker.
+### Installation & Setup
 
-Prerequisites
+**1. Clone the repository**
 
-Make sure you have Docker and Docker Compose installed on your machine.
-
-Installation & Setup
-
-Clone the repository:
-
-code
-Bash
-download
-content_copy
-expand_less
-git clone https://github.com/your-username/super-secure-calculator.git
+```bash
+git clone https://github.com/R0JSON/super-secure-calculator.git
 cd super-secure-calculator
+```
 
-Create the environment file:
-Copy the example environment file to create your own local configuration.
+**2. Create the environment file**
 
-code
-Bash
-download
-content_copy
-expand_less
+```bash
 cp .env.example .env
+```
 
-Now, open the newly created .env file and customize the variables. At a minimum, you must set a POSTGRES_PASSWORD and SECRET_KEY. The provided defaults are fine for local development.
+Then open the new `.env` file and customize your environment variables.
+At minimum, set values for `POSTGRES_PASSWORD` and `SECRET_KEY`.
+Defaults are fine for local development.
 
-Build and run the application:
-Use Docker Compose to build the images and start all the services in the background.
+**3. Build and run the application**
 
-code
-Bash
-download
-content_copy
-expand_less
+```bash
 docker compose up --build -d
+```
 
---build: Forces a rebuild of the images, which is useful when you change Dockerfiles or code.
+* `--build`: Forces image rebuilds (useful if you’ve changed Dockerfiles or code)
+* `-d`: Runs containers in detached mode
 
--d: Runs the containers in detached mode.
+**4. Access the app**
 
-You're all set!
-The application is now running. You can access the different parts of the stack at these URLs:
+| Service                       | URL                                                      |
+| ----------------------------- | -------------------------------------------------------- |
+| Frontend Website              | [http://localhost:3000](http://localhost:3000)           |
+| Backend API                   | [http://localhost:8080](http://localhost:8080)           |
+| Interactive API Docs          | [http://localhost:8080/docs](http://localhost:8080/docs) |
+| Database Admin Tool (Adminer) | [http://localhost:8081](http://localhost:8081)           |
 
-Frontend Website: http://localhost:3000
+---
 
-Backend API: http://localhost:8080
+## 🔧 Environment Variables
 
-Interactive API Docs: http://localhost:8080/docs
+| Variable                   | Description                               | Example                      |
+| -------------------------- | ----------------------------------------- | ---------------------------- |
+| `POSTGRES_SERVER`          | Hostname for PostgreSQL container         | `db`                         |
+| `POSTGRES_USER`            | PostgreSQL username                       | `postgres`                   |
+| `POSTGRES_PASSWORD`        | **Required.** PostgreSQL password         | `supersecretpassword`        |
+| `POSTGRES_DB`              | Database name                             | `app`                        |
+| `SECRET_KEY`               | **Required.** Secret key for signing JWTs | `your-super-secret-key-here` |
+| `FIRST_SUPERUSER`          | Email for the initial superuser           | `admin@example.com`          |
+| `FIRST_SUPERUSER_PASSWORD` | Password for the initial superuser        | `changethis`                 |
+| `BACKEND_CORS_ORIGINS`     | JSON list of allowed CORS origins         | `["http://localhost:3000"]`  |
+| `FRONTEND_PORT`            | Port for frontend website                 | `3000`                       |
+| `BACKEND_PORT`             | Port for backend API                      | `8080`                       |
 
-Database Admin Tool (Adminer): http://localhost:8081
+---
 
-🔧 Environment Variables
-
-The .env file is used to configure the application. Here are the key variables:
-
-Variable	Description	Example
-POSTGRES_SERVER	The hostname for the PostgreSQL container. Should be db.	db
-POSTGRES_USER	The username for the PostgreSQL database.	postgres
-POSTGRES_PASSWORD	Required. The password for the PostgreSQL database.	supersecretpassword
-POSTGRES_DB	The name of the database to use.	app
-SECRET_KEY	Required. A secret key for signing JWTs. Generate a strong random key.	your-super-secret-key-here
-FIRST_SUPERUSER	The email for the initial superuser account created on startup.	admin@example.com
-FIRST_SUPERUSER_PASSWORD	The password for the initial superuser account.	changethis
-BACKEND_CORS_ORIGINS	JSON list of allowed origins for CORS. Crucial for the frontend to work.	["http://localhost:3000"]
-FRONTEND_PORT	The port on your host machine to expose the frontend website.	3000
-BACKEND_PORT	The port on your host machine to expose the backend API.	8080
-📂 Project Structure
-
-A high-level overview of the project's directory structure:
+## 📂 Project Structure
 
 ```
-├── backend/                  # FastAPI Application Source Code
+├── backend/                  # FastAPI backend
 │   ├── app/                  # Main application module
 │   ├── alembic/              # Database migration scripts
-│   ├── scripts/              # Helper scripts (e.g., prestart.sh)
-│   └── Dockerfile            # Dockerfile for the backend service
+│   ├── scripts/              # Helper scripts (e.g. prestart.sh)
+│   └── Dockerfile            # Backend Dockerfile
 │
-├── frontend/                 # React Application Source Code
+├── frontend/                 # React frontend
 │   ├── public/               # Static assets
-│   ├── src/                  # Main React application source
-│   ├── Dockerfile            # Multi-stage Dockerfile for the frontend
-│   └── nginx.conf            # Nginx configuration for serving the React app
+│   ├── src/                  # Main React source code
+│   ├── Dockerfile            # Frontend Dockerfile
+│   └── nginx.conf            # Nginx configuration
 │
-├── .env                      # Your local environment configuration (ignored by Git)
-├── .env.example              # Template for the .env file
-├── docker-compose.yml        # Defines all services, networks, and volumes
+├── .env                      # Local environment config (ignored by Git)
+├── .env.example              # Example environment file
+├── docker-compose.yml        # Defines services, networks, and volumes
 └── README.md                 # This file
 ```
-📜 License
 
-This project is licensed under the MIT License. See the LICENSE file for details.
+---
+
+## 📜 License
+
+This project is licensed under the **MIT License**.
+See the [LICENSE](LICENSE) file for details.
+
+---
