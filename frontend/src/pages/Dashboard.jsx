@@ -1,39 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import api from '../api/axiosConfig';
+import React from 'react';
+import { useOutletContext } from 'react-router-dom';
+import Calculator from '../components/Calculator';
+import './Dashboard.css';
 
 function Dashboard() {
-  const [user, setUser] = useState(null);
-  const navigate = useNavigate();
+  // Get the user object from the parent App component's context.
+  const context = useOutletContext();
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const response = await api.get('/users/me');
-        setUser(response.data);
-      } catch (error) {
-        console.error("Failed to fetch user data:", error);
-        // If token is invalid or expired, log out the user
-        handleLogout();
-      }
-    };
-    fetchUser();
-  }, []);
-
-  const handleLogout = () => {
-    localStorage.removeItem('accessToken');
-    navigate('/login');
-  };
-
-  if (!user) {
+  // Thanks to our new ProtectedRoute, we can be confident that if this
+  // component renders, the context and user object will exist.
+  // We add a failsafe check just in case.
+  if (!context || !context.user) {
+    // This should theoretically never be seen by the user.
     return <div>Loading...</div>;
   }
 
+  // The main dashboard UI, now clean and simple.
   return (
-    <div>
-      <h2>Dashboard</h2>
-      <p>Welcome, {user.full_name || user.email}!</p>
-      <button onClick={handleLogout}>Logout</button>
+    <div className="dashboard-container">
+      <main className="dashboard-content">
+        <Calculator />
+      </main>
     </div>
   );
 }

@@ -1,0 +1,112 @@
+.calculator-container {
+  background-color: var(--card-background-color);
+  padding: 32px;
+  border-radius: 8px;
+  box-shadow: var(--box-shadow);
+}
+
+.calculator-container h2 {
+  margin-top: 0;
+  text-align: center;
+  color: var(--text-color);
+  font-size: 1.8rem;
+}
+
+.calculator-form {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  margin: 30px 0;
+}
+
+.calculator-form input,
+.calculator-form select {
+  padding: 12px;
+  border-radius: 5px;
+  border: 1px solid var(--border-color);
+  font-size: 1.1rem;
+  text-align: center;
+}
+
+.calculator-form input {
+  width: 120px;
+}
+
+.calculator-form button {
+  padding: 12px 24px;
+  border-radius: 5px;
+  border: none;
+  background-color: var(--primary-color);
+  color: white;
+  font-size: 1.1rem;
+  transition: background-color 0.2s;
+}
+
+.calculator-form button:hover {
+  background-color: var(--primary-hover-color);
+}
+
+.calculator-form button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.result-display {
+  text-align: center;
+  margin: 30px auto;
+  padding: 20px;
+  background-color: #e3f2fd;
+  border-left: 5px solid var(--primary-color);
+  max-width: 50%;
+}
+
+.result-display h3 {
+  margin: 0;
+  font-size: 1.8rem;
+  color: var(--text-color);
+}
+
+.result-display span {
+  font-weight: bold;
+  color: #0d47a1;
+}
+
+.error-message {
+  color: #d32f2f;
+  text-align: center;
+  font-weight: bold;
+  margin-top: 15px;
+}
+
+.history-container h3 {
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 8px;
+  margin-top: 40px;
+}
+
+.history-container ul {
+  list-style-type: none;
+  padding: 0;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.history-container li {
+  padding: 12px 8px;
+  border-bottom: 1px solid #f1f3f5;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  font-size: 1.1rem;
+  transition: background-color 0.2s;
+  display: flex;
+  justify-content: center;
+}
+
+.history-container li:hover {
+  background-color: #f8f9fa;
+}
+
+.history-container li:last-child {
+  border-bottom: none;
+}

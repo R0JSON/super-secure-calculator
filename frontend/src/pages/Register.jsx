@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link, useOutletContext } from 'react-router-dom';
 import api from '../api/axiosConfig';
+import './Auth.css';
 
 function Register() {
   const [email, setEmail] = useState('');
@@ -9,41 +10,52 @@ function Register() {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
+  // THE FIX: Get the whole context object safely
+  const context = useOutletContext();
+  const setUser = context ? context.setUser : null;
+
+  const handleRegister = async (e) => {
     e.preventDefault();
     setError('');
+
     try {
-      await api.post('/users/signup', {
-        email: email,
-        password: password,
-        full_name: fullName,
+      await api.post('/users/signup', { email, password, full_name: fullName });
+
+      const formData = new URLSearchParams();
+      formData.append('username', email);
+      formData.append('password', password);
+      const response = await api.post('/login/access-token', formData, {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       });
-      // Automatically navigate to login page after successful registration
-      navigate('/login');
+      localStorage.setItem('accessToken', response.data.access_token);
+
+      const userResponse = await api.get('/users/me');
+
+      // Use the setUser function only if it exists
+      if (setUser) {
+          setUser(userResponse.data);
+      }
+
+      navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Registration failed. Please try again.');
+      setError('Registration failed. Email may already be in use.');
+      console.error(err);
     }
   };
 
   return (
-    <div>
-      <h2>Register</h2>
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label>Full Name:</label>
-          <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} />
-        </div>
-        <div>
-          <label>Email:</label>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        </div>
-        <div>
-          <label>Password:</label>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength="8" />
-        </div>
+    <div className="auth-container">
+      <h2>Create Account</h2>
+      <form onSubmit={handleRegister} className="auth-form">
+        <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full Name" required />
+        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required />
+        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required />
         <button type="submit">Register</button>
       </form>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {error && <p className="error-message">{error}</p>}
+      <p className="auth-switch">
+        Already have an account? <Link to="/login">Login</Link>
+      </p>
     </div>
   );
 }
