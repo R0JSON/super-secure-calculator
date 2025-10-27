@@ -45,6 +45,8 @@ class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hashed_password: str
     calculations: list["Calculation"] = Relationship(back_populates="owner", cascade_delete=True)
+    posts: list["Post"] = Relationship(back_populates="owner", cascade_delete=True)
+    comments: list["Comment"] = Relationship(back_populates="owner", cascade_delete=True)
 
 # Properties to return via API, id is always required
 class UserPublic(UserBase):
@@ -117,3 +119,68 @@ class TokenPayload(SQLModel):
 class NewPassword(SQLModel):
     token: str
     new_password: str = Field(min_length=8, max_length=40)
+
+from datetime import datetime
+
+class PostBase(SQLModel):
+    title: str = Field(max_length=255)
+    content: str = Field(default="", max_length=2000)
+    created_at: datetime | None = Field(default_factory=datetime.utcnow)
+
+
+class PostCreate(PostBase):
+    pass
+
+
+class PostUpdate(SQLModel):
+    title: str | None = Field(default=None, max_length=255)
+    content: str | None = Field(default=None, max_length=2000)
+
+
+class Post(PostBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    owner_id: uuid.UUID = Field(foreign_key="user.id", nullable=False, ondelete="CASCADE")
+
+    owner: User | None = Relationship(back_populates="posts")
+    comments: list["Comment"] = Relationship(back_populates="post", cascade_delete=True)
+
+
+class PostPublic(PostBase):
+    id: uuid.UUID
+    owner_id: uuid.UUID
+
+
+class PostsPublic(SQLModel):
+    data: list[PostPublic]
+    count: int
+
+
+# --- Comment Models ---
+
+class CommentBase(SQLModel):
+    content: str = Field(max_length=1000)
+    created_at: datetime | None = Field(default_factory=datetime.utcnow)
+
+
+class CommentCreate(CommentBase):
+    post_id: uuid.UUID
+
+
+class Comment(CommentBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    post_id: uuid.UUID = Field(foreign_key="post.id", nullable=False, ondelete="CASCADE")
+    owner_id: uuid.UUID = Field(foreign_key="user.id", nullable=False, ondelete="CASCADE")
+
+    post: Post | None = Relationship(back_populates="comments")
+    owner: User | None = Relationship(back_populates="comments")
+
+
+class CommentPublic(CommentBase):
+    id: uuid.UUID
+    post_id: uuid.UUID
+    owner_id: uuid.UUID
+
+
+class CommentsPublic(SQLModel):
+    data: list[CommentPublic]
+    count: int
