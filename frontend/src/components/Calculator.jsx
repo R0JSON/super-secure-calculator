@@ -66,6 +66,29 @@ function Calculator() {
       setIsLoading(false);
     }
   };
+  
+  const handleShare = async () => {
+    if (result === null) return;
+
+    try {
+      const payload = {
+        expression: `${operandA} ${operationSymbols[operation]} ${operandB}`,
+        result: result.toString(),
+      };
+
+      const response = await apiClient.post('/share/', payload);
+
+      if (response.status === 200 || response.status === 201) {
+        alert('Obliczenie zostało udostępnione!');
+      } else {
+        alert('Nie udało się udostępnić obliczenia.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Błąd podczas udostępniania obliczenia.');
+    }
+  };
+
 
   return (
     <div className="calculator-container">
@@ -104,9 +127,14 @@ function Calculator() {
 
       {error && <p className="error-message">{error}</p>}
       {result !== null && (
-        <div className="result-display">
-          <h3>Result: <span>{result}</span></h3>
-        </div>
+      	<div className="result-display">
+    		<h3>
+      	 		Result: <span>{result}</span>
+        	</h3>
+    		<button onClick={handleShare} className="share-button">
+      			Udostępnij
+    		</button>
+  	</div>
       )}
 
       <div className="history-container">

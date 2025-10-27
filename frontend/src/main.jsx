@@ -6,6 +6,7 @@ import App from './App.jsx';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
 import Dashboard from './pages/Dashboard.jsx';
+import SharedCalculations from './pages/SharedCalculations.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 
 import './index.css';
@@ -14,11 +15,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
       <Routes>
-        {/*
-          This is a "Layout Route". The App component will now render for
-          all child routes, and it will contain the <Outlet />.
-          Because it's rendered by a Route, it now has router context.
-        */}
         <Route element={<App />}>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -30,10 +26,18 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               </ProtectedRoute>
             }
           />
-          {/* Add a default route to redirect users */}
+          <Route
+            path="/shared"
+            element={
+              <ProtectedRoute>
+                <SharedCalculations />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Route>
       </Routes>
     </BrowserRouter>
   </React.StrictMode>
 );
+

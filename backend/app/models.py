@@ -1,17 +1,32 @@
 import uuid
+from uuid import UUID
 import enum
-from typing import Literal
+from typing import Literal, Optional, List
+from datetime import datetime
 from pydantic import EmailStr
 from sqlmodel import Field, Relationship, SQLModel
 
 
+class SharedCalculationBase(SQLModel):
+    expression: str = Field(max_length=255)
+    result: str = Field(max_length=255)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class SharedCalculation(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    expression: str
+    result: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    user_id: UUID = Field(foreign_key="user.id")  # UUID, pasuje do user.id
+    user: Optional["User"] = Relationship(back_populates="shared_calculations")
 # Shared properties
 class UserBase(SQLModel):
     email: EmailStr = Field(unique=True, index=True, max_length=255)
     is_active: bool = True
     is_superuser: bool = False
     full_name: str | None = Field(default=None, max_length=255)
-
+	
 
 # Properties to receive via API on creation
 class UserCreate(UserBase):
@@ -45,7 +60,9 @@ class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hashed_password: str
     calculations: list["Calculation"] = Relationship(back_populates="owner", cascade_delete=True)
-
+    shared_calculations: Optional[List["SharedCalculation"]] = Relationship(
+        back_populates="user"
+    )
 # Properties to return via API, id is always required
 class UserPublic(UserBase):
     id: uuid.UUID
