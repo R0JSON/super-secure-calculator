@@ -4,7 +4,7 @@ function SharedCalculations({ token }) {
   const [shared, setShared] = useState([]);
 
   useEffect(() => {
-    fetch("http://localhost:3000/api/v1/share/", {
+    fetch("http://localhost:3001/api/v1/share/", {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
       .then((res) => res.json())
