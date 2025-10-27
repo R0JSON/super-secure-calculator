@@ -62,23 +62,25 @@ class OperationType(str, enum.Enum):
     sub = "sub"
     mul = "mul"
     div = "div"
+
 # Shared properties
 class CalculationBase(SQLModel):
     result: int | None = Field(default=None)
     operand_a: int | None = Field(default=None)
     operand_b: int | None = Field(default=None)
     operation: OperationType | None = Field(default=None)
-# Properties to receive on item creation
 
+# Properties to receive on item creation
+class CalculationCreate(SQLModel):
+    operand_a: int
+    operand_b: int
+    operation: OperationType
 
 # Properties to receive on item update
 class CalculationUpdate(SQLModel):
-    operand_a: int
-    operand_b: int 
-    operation: OperationType 
-
-class CalculationCreate(CalculationUpdate):
-    pass
+    operand_a: int | None = None
+    operand_b: int | None = None
+    operation: OperationType | None = None
 
 # Database model, database table inferred from class name
 class Calculation(CalculationBase, table=True):
@@ -87,12 +89,17 @@ class Calculation(CalculationBase, table=True):
         foreign_key="user.id", nullable=False, ondelete="CASCADE"
     )
     owner: User | None = Relationship(back_populates="calculations")
+    posts: list["Post"] = Relationship(back_populates="calculation", cascade_delete=True)
 
 
 # Properties to return via API, id is always required
 class CalculationPublic(CalculationBase):
     id: uuid.UUID
     owner_id: uuid.UUID
+
+
+class CalculationWithPosts(CalculationPublic):
+    posts: list["PostPublic"] = []
 
 
 class CalculationsPublic(SQLModel):
@@ -124,30 +131,42 @@ from datetime import datetime
 
 class PostBase(SQLModel):
     title: str = Field(max_length=255)
-    content: str = Field(default="", max_length=2000)
+    description: str | None = Field(default=None, max_length=500)  # Optional description about the calculation
     created_at: datetime | None = Field(default_factory=datetime.utcnow)
 
 
 class PostCreate(PostBase):
-    pass
+    calculation_id: uuid.UUID  # Post must be associated with a calculation
 
 
 class PostUpdate(SQLModel):
     title: str | None = Field(default=None, max_length=255)
-    content: str | None = Field(default=None, max_length=2000)
+    description: str | None = Field(default=None, max_length=500)
 
 
 class Post(PostBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     owner_id: uuid.UUID = Field(foreign_key="user.id", nullable=False, ondelete="CASCADE")
+    calculation_id: uuid.UUID = Field(foreign_key="calculation.id", nullable=False, ondelete="CASCADE")
 
     owner: User | None = Relationship(back_populates="posts")
+    calculation: Calculation | None = Relationship(back_populates="posts")
     comments: list["Comment"] = Relationship(back_populates="post", cascade_delete=True)
 
 
 class PostPublic(PostBase):
     id: uuid.UUID
     owner_id: uuid.UUID
+    calculation_id: uuid.UUID
+
+
+class PostWithCalculation(PostPublic):
+    calculation: CalculationPublic | None = None
+
+
+class PostWithDetails(PostWithCalculation):
+    comments: list["CommentPublic"] = []
+    owner: UserPublic | None = None
 
 
 class PostsPublic(SQLModel):
@@ -179,6 +198,10 @@ class CommentPublic(CommentBase):
     id: uuid.UUID
     post_id: uuid.UUID
     owner_id: uuid.UUID
+
+
+class CommentWithOwner(CommentPublic):
+    owner: UserPublic | None = None
 
 
 class CommentsPublic(SQLModel):

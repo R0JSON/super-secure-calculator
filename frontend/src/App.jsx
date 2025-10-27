@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import api from './api/axiosConfig';
-import Header from './components/Header'; // Import the new Header
+import Header from './components/Header';
 import './App.css';
 
 function App() {
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   // On initial load, check for a token and fetch user data
@@ -14,15 +15,19 @@ function App() {
     if (token) {
       const fetchUser = async () => {
         try {
-          // NOTE: Your axios config likely prefixes this with /api/v1
           const response = await api.get('/users/me');
           setUser(response.data);
         } catch (error) {
+          console.error('Error fetching user:', error);
           // Token is invalid or expired, clear it
           localStorage.removeItem('accessToken');
+        } finally {
+          setLoading(false);
         }
       };
       fetchUser();
+    } else {
+      setLoading(false);
     }
   }, []);
 
@@ -31,6 +36,15 @@ function App() {
     setUser(null);
     navigate('/login');
   };
+
+  // Show loading state while checking authentication
+  if (loading) {
+    return (
+      <div className="app-loading">
+        <div className="loading-spinner">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <>
