@@ -1,206 +1,137 @@
-.posts-page {
-  min-height: calc(100vh - 80px);
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 2rem 0;
+/* Add these styles to your existing PostsPage.css */
+
+.comments-section {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
 }
 
-.posts-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1rem;
-}
-
-.posts-container h1 {
-  text-align: center;
-  color: white;
-  font-size: 2.5rem;
-  margin-bottom: 0.5rem;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-.page-description {
-  text-align: center;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 1.1rem;
-  margin-bottom: 2rem;
-}
-
-.loading, .error-message {
-  text-align: center;
-  color: white;
-  font-size: 1.2rem;
-  padding: 2rem;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  backdrop-filter: blur(10px);
-}
-
-.error-message {
-  background: rgba(255, 0, 0, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.retry-button {
-  display: block;
-  margin: 1rem auto;
-  padding: 0.75rem 2rem;
-  background: #4CAF50;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: background 0.3s;
-}
-
-.retry-button:hover {
-  background: #45a049;
-}
-
-.no-posts {
-  text-align: center;
-  color: white;
-  padding: 3rem;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  backdrop-filter: blur(10px);
-}
-
-.no-posts h3 {
-  margin-bottom: 1rem;
-  font-size: 1.5rem;
-}
-
-.posts-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 1.5rem;
-  margin-top: 2rem;
-}
-
-.post-card {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  transition: transform 0.3s, box-shadow 0.3s;
-}
-
-.post-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-}
-
-.post-header {
-  margin-bottom: 1rem;
-}
-
-.post-title {
+.comments-title {
   color: #333;
-  font-size: 1.3rem;
-  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
   font-weight: 600;
 }
 
-.post-description {
-  color: #666;
-  font-size: 0.95rem;
-  line-height: 1.4;
-  margin: 0;
+.comments-list {
+  margin-bottom: 1.5rem;
 }
 
-.calculation-display {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+.comment-item {
+  background: #f8f9fa;
   border-radius: 8px;
   padding: 1rem;
-  margin: 1rem 0;
-  color: white;
+  margin-bottom: 0.75rem;
+  border-left: 3px solid #667eea;
 }
 
-.calculation-formula {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  font-size: 1.4rem;
-  font-weight: bold;
-  margin-bottom: 0.5rem;
-}
-
-.operand {
-  background: rgba(255, 255, 255, 0.2);
-  padding: 0.3rem 0.8rem;
-  border-radius: 5px;
-  min-width: 40px;
-  text-align: center;
-}
-
-.operator, .equals {
-  font-weight: bold;
-}
-
-.result {
-  background: rgba(255, 255, 255, 0.3);
-  padding: 0.3rem 0.8rem;
-  border-radius: 5px;
-  min-width: 60px;
-  text-align: center;
-  font-weight: bold;
-}
-
-.calculation-details {
-  text-align: center;
-}
-
-.operation-name {
-  background: rgba(255, 255, 255, 0.2);
-  padding: 0.2rem 0.8rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.post-footer {
-  border-top: 1px solid #eee;
-  padding-top: 1rem;
-  margin-top: 1rem;
-}
-
-.post-meta {
+.comment-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.85rem;
-  color: #888;
+  margin-bottom: 0.5rem;
 }
 
-.post-date {
+.comment-author {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 0.9rem;
+}
+
+.comment-date {
+  color: #6c757d;
+  font-size: 0.8rem;
   font-style: italic;
 }
 
-/* Responsive design */
+.comment-content {
+  color: #333;
+  line-height: 1.4;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.no-comments {
+  color: #6c757d;
+  font-style: italic;
+  text-align: center;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 6px;
+  margin-bottom: 1.5rem;
+}
+
+.add-comment {
+  margin-top: 1rem;
+}
+
+.comment-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+  margin-bottom: 0.5rem;
+  box-sizing: border-box;
+}
+
+.comment-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+.comment-submit-btn {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  padding: 0.5rem 1.5rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.comment-submit-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.comment-submit-btn:disabled {
+  background: #bdc3c7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Responsive design for comments */
 @media (max-width: 768px) {
-  .posts-container {
-    padding: 0 0.5rem;
+  .comment-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
   }
 
-  .posts-container h1 {
-    font-size: 2rem;
+  .comment-date {
+    align-self: flex-end;
   }
+}
+.comment-input.error {
+  border-color: #ff4444;
+  box-shadow: 0 0 0 2px rgba(255, 68, 68, 0.2);
+}
 
-  .posts-grid {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
+.comment-error {
+  color: #ff4444;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  margin-bottom: 0.5rem;
+}
 
-  .calculation-formula {
-    font-size: 1.2rem;
-  }
-
-  .post-card {
-    padding: 1rem;
-  }
+.comment-submit-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
 }

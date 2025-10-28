@@ -24,7 +24,14 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route element={<App />}>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/posts-public" element={<PostsPage />} /> {/* Add this route */}
+          <Route
+              path="/posts-public"
+              element={
+                <ProtectedRoute>
+                  <PostsPage />
+                </ProtectedRoute>
+              }
+          />
           <Route
             path="/dashboard"
             element={

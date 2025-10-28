@@ -17,37 +17,50 @@ from app.models import (
     Calculation,
     User,
     Comment,
+    UserPublic,
+    PostPublicWithOwner,
+    PostsPublicWithOwners,
+    UserPublicLimited,
 )
 
 router = APIRouter(prefix="/posts", tags=["posts"])
 
 
-@router.get("/", response_model=PostsPublic)
-def read_posts(session: SessionDep, current_user: CurrentUser, skip: int = 0, limit: int = 100) -> Any:
+@router.get("/public/", response_model=PostsPublicWithOwners)
+def read_public_posts(session: SessionDep, skip: int = 0, limit: int = 100) -> Any:
     """
-    Retrieve posts.
+    Retrieve public posts with limited owner information.
     """
-    if current_user.is_superuser:
-        count_statement = select(func.count()).select_from(Post)
-        count = session.exec(count_statement).one()
-        statement = select(Post).offset(skip).limit(limit)
-        posts = session.exec(statement).all()
-    else:
-        count_statement = (
-            select(func.count())
-            .select_from(Post)
-            .where(Post.owner_id == current_user.id)
-        )
-        count = session.exec(count_statement).one()
-        statement = (
-            select(Post)
-            .where(Post.owner_id == current_user.id)
-            .offset(skip)
-            .limit(limit)
-        )
-        posts = session.exec(statement).all()
+    count_statement = select(func.count()).select_from(Post)
+    count = session.exec(count_statement).one()
 
-    return PostsPublic(data=posts, count=count)
+    statement = (
+        select(Post)
+        .join(User, Post.owner_id == User.id)
+        .where(User.is_active == True)
+        .offset(skip)
+        .limit(limit)
+    )
+    posts = session.exec(statement).all()
+
+    posts_with_owners = []
+    for post in posts:
+        post_with_owner = PostPublicWithOwner(
+            id=post.id,
+            title=post.title,
+            description=post.description,
+            created_at=post.created_at,
+            owner_id=post.owner_id,
+            calculation_id=post.calculation_id,
+            owner=UserPublicLimited(
+                id=post.owner.id,
+                full_name=post.owner.full_name
+                # Don't include email, is_active, is_superuser
+            )
+        )
+        posts_with_owners.append(post_with_owner)
+
+    return PostsPublicWithOwners(data=posts_with_owners, count=count)
 
 
 @router.get("/{id}", response_model=PostWithDetails)
@@ -91,26 +104,6 @@ def read_post(session: SessionDep, current_user: CurrentUser, id: uuid.UUID) -> 
     )
 
     return post_details
-
-
-@router.get("/public/", response_model=PostsPublic)
-def read_public_posts(session: SessionDep, skip: int = 0, limit: int = 100) -> Any:
-    """
-    Retrieve public posts (available without authentication).
-    """
-    count_statement = select(func.count()).select_from(Post)
-    count = session.exec(count_statement).one()
-
-    statement = (
-        select(Post)
-        .join(User, Post.owner_id == User.id)
-        .where(User.is_active == True)
-        .offset(skip)
-        .limit(limit)
-    )
-    posts = session.exec(statement).all()
-
-    return PostsPublic(data=posts, count=count)
 
 
 @router.get("/public/{id}", response_model=PostWithCalculation)
