@@ -1,43 +1,20 @@
 /**
- * Sanitize user input to prevent XSS attacks
- */
-export const sanitizeInput = (input) => {
-  if (typeof input !== 'string') return input;
-
-  const div = document.createElement('div');
-  div.textContent = input;
-  return div.innerHTML;
-};
-
-/**
  * Sanitize comment content before submission
+ * Only do minimal sanitization in frontend, let backend handle the main sanitization
  */
 export const sanitizeComment = (content) => {
   if (!content) return content;
 
-  // Trim whitespace
+  console.log('Frontend sanitization input:', content);
+
+  // Only trim whitespace in frontend
+  // Don't do HTML escaping here - let backend handle it once
   let sanitized = content.trim();
 
-  // Remove potentially dangerous content
-  const dangerousPatterns = [
-    /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
-    /on\w+\s*=/gi,
-    /javascript:/gi,
-    /vbscript:/gi,
-    /expression\s*\(/gi,
-    /url\s*\(/gi,
-  ];
+  // Remove excessive whitespace (optional)
+  sanitized = sanitized.replace(/\s+/g, ' ');
 
-  dangerousPatterns.forEach(pattern => {
-    sanitized = sanitized.replace(pattern, '');
-  });
-
-  // Limit consecutive spaces
-  sanitized = sanitized.replace(/ {2,}/g, ' ');
-
-  // Limit consecutive newlines
-  sanitized = sanitized.replace(/\n{3,}/g, '\n\n');
-
+  console.log('Frontend sanitization output:', sanitized);
   return sanitized;
 };
 

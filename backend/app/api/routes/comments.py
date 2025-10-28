@@ -1,12 +1,10 @@
 import uuid
 from typing import Any
-
 from fastapi import APIRouter, HTTPException
 from sqlmodel import select, func
 import re
 import html
-from fastapi import APIRouter, HTTPException
-from sqlmodel import select, func
+
 from app.api.deps import SessionDep, CurrentUser
 from app.models import (
     Comment,
@@ -31,14 +29,15 @@ def sanitize_comment_content(content: str) -> str:
     if not content:
         return content
 
+    print(f"🔧 Sanitizing comment: '{content}'")  # Debug
+
     # Remove leading/trailing whitespace
     content = content.strip()
 
-    # Basic HTML escaping
+    # Basic HTML escaping - ONLY ONCE
     content = html.escape(content)
 
     # Remove potentially dangerous patterns
-    # Remove script tags and event handlers
     dangerous_patterns = [
         r'<script.*?>.*?</script>',
         r'on\w+\s*=',
@@ -57,9 +56,11 @@ def sanitize_comment_content(content: str) -> str:
     # Limit consecutive newlines (keep max 2)
     content = re.sub(r'\n{3,}', '\n\n', content)
 
+    print(f"✅ Sanitized to: '{content}'")  # Debug
     return content
 
-@router.get("/post/{post_id}", response_model=CommentsPublicWithOwners)  # Changed response model
+
+@router.get("/post/{post_id}", response_model=CommentsPublicWithOwners)
 def read_comments_for_post(
         session: SessionDep, post_id: uuid.UUID, skip: int = 0, limit: int = 100
 ) -> Any:
@@ -104,7 +105,7 @@ def read_comments_for_post(
         )
         comments_public.append(comment_public)
 
-    return CommentsPublicWithOwners(data=comments_public, count=count)  # Use new model
+    return CommentsPublicWithOwners(data=comments_public, count=count)
 
 
 @router.post("/", response_model=CommentWithOwner)
@@ -119,7 +120,9 @@ def create_comment(
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
 
-    # Sanitize content before creating comment
+    print(f"📨 Received comment: '{comment_in.content}'")  # Debug
+
+    # Sanitize content before creating comment (ONLY ONCE)
     sanitized_content = sanitize_comment_content(comment_in.content)
 
     # Create comment with sanitized content
@@ -137,6 +140,8 @@ def create_comment(
 
     # Refresh to get the owner relationship loaded
     session.refresh(comment.owner)
+
+    print(f"💾 Stored comment: '{comment.content}'")  # Debug
 
     return CommentWithOwner(
         id=comment.id,

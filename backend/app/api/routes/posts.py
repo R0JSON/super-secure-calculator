@@ -3,7 +3,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from sqlmodel import select, func
-
+import html, re
 from app.api.deps import SessionDep, CurrentUser
 from app.models import (
     Post,
@@ -25,6 +25,42 @@ from app.models import (
 
 router = APIRouter(prefix="/posts", tags=["posts"])
 
+def sanitize_description_content(content: str) -> str:
+    """
+    Sanitize description content to prevent XSS and other attacks.
+    """
+    if not content:
+        return content
+
+    print(f"🔧 Sanitizing description: '{content}'")  # Debug
+
+    # Remove leading/trailing whitespace
+    content = content.strip()
+
+    # Basic HTML escaping - ONLY ONCE
+    content = html.escape(content)
+
+    # Remove potentially dangerous patterns
+    dangerous_patterns = [
+        r'<script.*?>.*?</script>',
+        r'on\w+\s*=',
+        r'javascript:',
+        r'vbscript:',
+        r'expression\s*\(',
+        r'url\s*\(',
+    ]
+
+    for pattern in dangerous_patterns:
+        content = re.sub(pattern, '', content, flags=re.IGNORECASE)
+
+    # Limit consecutive spaces
+    content = re.sub(r' {2,}', ' ', content)
+
+    # Limit consecutive newlines (keep max 2)
+    content = re.sub(r'\n{3,}', '\n\n', content)
+
+    print(f"✅ Sanitized description to: '{content}'")  # Debug
+    return content
 
 @router.get("/public/", response_model=PostsPublicWithOwners)
 def read_public_posts(session: SessionDep, skip: int = 0, limit: int = 100) -> Any:
@@ -137,7 +173,11 @@ def read_public_post(session: SessionDep, id: uuid.UUID) -> Any:
 
 
 @router.post("/", response_model=PostWithCalculation)
-def create_post(session: SessionDep, current_user: CurrentUser, post_in: PostCreate) -> Any:
+def create_post(
+        session: SessionDep,
+        current_user: CurrentUser,
+        post_in: PostCreate
+) -> Any:
     """
     Create a new post associated with a calculation.
     """
@@ -148,9 +188,19 @@ def create_post(session: SessionDep, current_user: CurrentUser, post_in: PostCre
     if not current_user.is_superuser and calculation.owner_id != current_user.id:
         raise HTTPException(status_code=400, detail="Not enough permissions to use this calculation")
 
-    # Create the post
+    # Sanitize title and description
+    sanitized_title = sanitize_description_content(post_in.title)
+    sanitized_description = sanitize_description_content(post_in.description) if post_in.description else None
+
+    # Create the post with sanitized data
+    post_data = {
+        "title": sanitized_title,
+        "description": sanitized_description,
+        "calculation_id": post_in.calculation_id
+    }
+
     post = Post.model_validate(
-        post_in,
+        post_data,
         update={"owner_id": current_user.id}
     )
     session.add(post)
@@ -169,7 +219,6 @@ def create_post(session: SessionDep, current_user: CurrentUser, post_in: PostCre
         calculation_id=post.calculation_id,
         calculation=post.calculation
     )
-
 
 @router.put("/{id}", response_model=PostPublic)
 def update_post(session: SessionDep, current_user: CurrentUser, id: uuid.UUID, post_in: PostUpdate) -> Any:

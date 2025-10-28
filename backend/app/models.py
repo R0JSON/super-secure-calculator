@@ -206,16 +206,6 @@ class CommentBase(SQLModel):
     content: str = Field(max_length=1000)
     created_at: datetime | None = Field(default_factory=datetime.utcnow)
 
-    @field_validator('content')
-    @classmethod
-    def sanitize_content(cls, v: str) -> str:
-        if not v:
-            return v
-        # Remove leading/trailing whitespace
-        v = v.strip()
-        # Basic HTML escaping
-        v = html.escape(v)
-        return v
 
 
 class CommentCreate(CommentBase):
