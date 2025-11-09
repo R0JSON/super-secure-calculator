@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './PostPage.css';
 import { sanitizeComment, validateComment } from '../utils/sanitize';
+import api from '../api/axiosConfig';
 
 const PostsPage = () => {
   const [posts, setPosts] = useState([]);
@@ -17,48 +18,52 @@ const PostsPage = () => {
   const fetchPosts = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/v1/posts/public/');
+      setError('');
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch posts');
-      }
+      // CORRECT: Axios returns response with data property
+      const response = await api.get('/posts/public/');
 
-      const data = await response.json();
-      setPosts(data.data || []);
+      // CORRECT: Access data from response.data
+      const postsData = response.data.data || [];
+      console.log('Fetched posts:', postsData); // Debug
+      setPosts(postsData);
 
       // Fetch comments for each post
-      data.data.forEach(post => {
+      postsData.forEach(post => {
         fetchComments(post.id);
       });
     } catch (err) {
-      setError('Error loading posts. Please try again later.');
       console.error('Error fetching posts:', err);
+      const errorMessage = err.response?.data?.detail || err.message || 'Error loading posts. Please try again later.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-const fetchComments = async (postId) => {
-  try {
-    const response = await fetch(`/api/v1/comments/post/${postId}`);
-    if (response.ok) {
-      const data = await response.json();
-      console.log('Comments API response for post', postId, ':', data); // Debug
+  const fetchComments = async (postId) => {
+    try {
+      console.log('Fetching comments for post:', postId); // Debug
+      const response = await api.get(`/comments/post/${postId}`);
+
+      // CORRECT: Axios response data is in response.data
+      const commentsData = response.data.data || [];
+      console.log('Comments for post', postId, ':', commentsData);
 
       setPosts(prevPosts =>
         prevPosts.map(post =>
           post.id === postId
-            ? { ...post, comments: data.data || [] }
+            ? { ...post, comments: commentsData }
             : post
         )
       );
+    } catch (err) {
+      console.error('Error fetching comments for post', postId, ':', err);
+      // Don't set error state for comments to avoid breaking the UI
     }
-  } catch (err) {
-    console.error('Error fetching comments:', err);
-  }
-};
+  };
 
-const handleCommentChange = (postId, content) => {
+  const handleCommentChange = (postId, content) => {
     setCommentInputs(prev => ({
       ...prev,
       [postId]: content
@@ -100,32 +105,30 @@ const handleCommentChange = (postId, content) => {
     setCommentErrors(prev => ({ ...prev, [postId]: '' }));
 
     try {
-      const response = await fetch('/api/v1/comments/', {
-        method: 'POST',
+      // CORRECT: Use axios.post() for POST requests
+      console.log('Submitting comment for post:', postId, 'Content:', content);
+      const response = await api.post('/comments/', {
+        post_id: postId,
+        content: content
+      }, {
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          post_id: postId,
-          content: content
-        })
+        }
       });
 
-      if (response.ok) {
-        setCommentInputs(prev => ({ ...prev, [postId]: '' }));
-        // Refresh comments for this post
-        fetchComments(postId);
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to post comment');
-      }
+      console.log('Comment submitted successfully:', response.data);
+
+      // Clear input and refresh comments
+      setCommentInputs(prev => ({ ...prev, [postId]: '' }));
+      await fetchComments(postId); // Refresh comments for this post
+
     } catch (err) {
+      console.error('Error posting comment:', err);
+      const errorMessage = err.response?.data?.detail || err.message || 'Error posting comment. Please try again.';
       setCommentErrors(prev => ({
         ...prev,
-        [postId]: err.message || 'Error posting comment. Please try again.'
+        [postId]: errorMessage
       }));
-      console.error('Error posting comment:', err);
     } finally {
       setSubmittingComments(prev => ({ ...prev, [postId]: false }));
     }
@@ -151,17 +154,13 @@ const handleCommentChange = (postId, content) => {
     return symbols[operation] || operation;
   };
 
-const getAuthorName = (owner) => {
-  console.log('getAuthorName called with:', owner); // Debug
-
-  if (owner && owner.full_name && owner.full_name.trim() !== '') {
-    return owner.full_name;
-  }
-
-  return 'Community Member';
-};
-
-
+  const getAuthorName = (owner) => {
+    console.log('Owner data:', owner); // Debug
+    if (owner && owner.full_name && owner.full_name.trim() !== '') {
+      return owner.full_name;
+    }
+    return 'Community Member';
+  };
 
   if (loading) {
     return (
@@ -212,22 +211,11 @@ const getAuthorName = (owner) => {
                   )}
                 </div>
 
-                {post.calculation && (
+                {/* Display calculation if available */}
+                {post.calculation_id && (
                   <div className="calculation-display">
-                    <div className="calculation-formula">
-                      <span className="operand">{post.calculation.operand_a}</span>
-                      <span className="operator">
-                        {getOperationSymbol(post.calculation.operation)}
-                      </span>
-                      <span className="operand">{post.calculation.operand_b}</span>
-                      <span className="equals">=</span>
-                      <span className="result">{post.calculation.result}</span>
-                    </div>
-                    <div className="calculation-details">
-                      <span className="operation-name">
-                        {post.calculation.operation.toUpperCase()}
-                      </span>
-                    </div>
+                    <p>Calculation ID: {post.calculation_id}</p>
+                    {/* You might want to fetch calculation details separately */}
                   </div>
                 )}
 
@@ -239,13 +227,8 @@ const getAuthorName = (owner) => {
 
                   {/* Comments List */}
                   {post.comments && post.comments.length > 0 ? (
-                  <div className="comments-list">
-                    {post.comments.map((comment) => {
-                      console.log('Full comment:', comment);
-                      console.log('Comment owner:', comment.owner);
-                      console.log('Owner full_name:', comment.owner?.full_name);
-
-                      return (
+                    <div className="comments-list">
+                      {post.comments.map((comment) => (
                         <div key={comment.id} className="comment-item">
                           <div className="comment-header">
                             <span className="comment-author">
@@ -257,12 +240,11 @@ const getAuthorName = (owner) => {
                           </div>
                           <p className="comment-content">{comment.content}</p>
                         </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="no-comments">No comments yet. Be the first to comment!</p>
-                )}
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="no-comments">No comments yet. Be the first to comment!</p>
+                  )}
 
                   {/* Add Comment Form */}
                   <div className="add-comment">
