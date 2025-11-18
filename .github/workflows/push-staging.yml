@@ -18,5 +18,5 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-      - run: docker build ./backend --file Dockerfile --tag ssc-backend:$(date +%s)
+      - run: docker build ./backend --file backend/Dockerfile --tag ssc-backend:$(date +%s)
 
