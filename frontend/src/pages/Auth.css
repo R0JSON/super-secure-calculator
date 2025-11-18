@@ -1,0 +1,58 @@
+.auth-container {
+  background-color: var(--card-background-color);
+  padding: 40px;
+  border-radius: 8px;
+  box-shadow: var(--box-shadow);
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+}
+
+.auth-container h2 {
+  margin-top: 0;
+  margin-bottom: 24px;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.auth-form input {
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  font-size: 1rem;
+}
+
+.auth-form button {
+  padding: 12px;
+  border-radius: 5px;
+  border: none;
+  background-color: var(--primary-color);
+  color: white;
+  font-size: 1rem;
+  transition: background-color 0.2s;
+}
+
+.auth-form button:hover {
+  background-color: var(--primary-hover-color);
+}
+
+.auth-switch {
+  margin-top: 20px;
+  font-size: 0.9rem;
+}
+
+.auth-switch a {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.error-message {
+  color: #d32f2f;
+  margin-top: 15px;
+  font-weight: bold;
+}

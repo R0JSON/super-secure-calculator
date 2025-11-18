@@ -1,37 +1,45 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import ProtectedRoute from './components/ProtectedRoute';
-import './App.css'; // Optional: for basic styling
+import React, { useState, useEffect } from 'react';
+import { Outlet, useNavigate } from 'react-router-dom';
+import api from './api/axiosConfig';
+import Header from './components/Header'; // Import the new Header
+import './App.css';
 
 function App() {
+  const [user, setUser] = useState(null);
+  const navigate = useNavigate();
+
+  // On initial load, check for a token and fetch user data
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      const fetchUser = async () => {
+        try {
+          // NOTE: Your axios config likely prefixes this with /api/v1
+          const response = await api.get('/users/me');
+          setUser(response.data);
+        } catch (error) {
+          // Token is invalid or expired, clear it
+          localStorage.removeItem('accessToken');
+        }
+      };
+      fetchUser();
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('accessToken');
+    setUser(null);
+    navigate('/login');
+  };
+
   return (
-    <Router>
-      <div>
-        <nav>
-          <ul>
-            <li><Link to="/login">Login</Link></li>
-            <li><Link to="/register">Register</Link></li>
-          </ul>
-        </nav>
-        <hr />
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-
-          {/* Protected Routes */}
-          <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            {/* Add other protected routes here */}
-          </Route>
-
-          {/* Redirect root to login or dashboard */}
-          <Route path="/" element={<Login />} />
-        </Routes>
-      </div>
-    </Router>
+    <>
+      <Header user={user} handleLogout={handleLogout} />
+      <main className="app-content">
+        {/* Pass user state and setters to all child routes */}
+        <Outlet context={{ user, setUser }} />
+      </main>
+    </>
   );
 }
 
