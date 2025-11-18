@@ -1,76 +1,71 @@
 name: Build and Push Backend to GHCR
 
 on:
-push:
-branches:
-\- master
+  push:
+    branches:
+      - master
 
 env:
-
-# Standard environment variables
-
-ENVIRONMENT: staging
-DOMAIN: ${{ secrets.DOMAIN\_STAGING }}
-SECRET\_KEY: ${{ secrets.SECRET\_KEY }}
-FIRST\_SUPERUSER: ${{ secrets.FIRST\_SUPERUSER }}
-FIRST\_SUPERUSER\_PASSWORD: ${{ secrets.FIRST\_SUPERUSER\_PASSWORD }}
-POSTGRES\_PASSWORD: ${{ secrets.POSTGRES\_PASSWORD }}
-
-# Variables for GHCR
-
-REGISTRY: ghcr.io
-
-# Use GitHub's built-in variables to define the image name
-
-IMAGE\_NAME: ${{ github.repository }}/ssc-backend
+  # Standard environment variables are kept here
+  ENVIRONMENT: staging
+  DOMAIN: ${{ secrets.DOMAIN_STAGING }}
+  SECRET_KEY: ${{ secrets.SECRET_KEY }}
+  FIRST_SUPERUSER: ${{ secrets.FIRST_SUPERUSER }}
+  FIRST_SUPERUSER_PASSWORD: ${{ secrets.FIRST_SUPERUSER_PASSWORD }}
+  POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+  
+  # Variables for GHCR
+  REGISTRY: ghcr.io
+  # Sets the image name to owner/repo/ssc-backend
+  IMAGE_NAME: ${{ github.repository }}/ssc-backend
 
 jobs:
-deploy:
-runs-on: ubuntu-latest
-permissions:
-contents: read
-packages: write \# Required to push to GitHub Packages/Container Registry
-
-steps:
-  - name: Checkout repository
-    uses: actions/checkout@v4 # Using v4 for stability
-    
-  # --- Docker Login Step ---
-  - name: Log in to GitHub Container Registry
-    uses: docker/login-action@v3
-    with:
-      registry: ${{ env.REGISTRY }}
-      # Use GITHUB_ACTOR as the username
-      username: ${{ github.actor }}
-      # Use the GITHUB_TOKEN provided by GitHub Actions for authentication
-      password: ${{ secrets.GITHUB_TOKEN }}
-
-  # --- Build and Tag Step ---
-  - name: Build and Tag Docker image
-    id: docker_build
-    run: |
-      # Define the dynamic tag based on the commit SHA and a Unix timestamp
-      SHA_TAG=${{ github.sha }}
-      TIME_TAG=$(date +%s)
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # Crucial: Grants permission to push to GHCR
       
-      # The full image name with two tags (sha and timestamp)
-      FULL_IMAGE_SHA=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${SHA_TAG}
-      FULL_IMAGE_TIME=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${TIME_TAG}
-      
-      echo "Building image: $FULL_IMAGE_SHA and $FULL_IMAGE_TIME"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      ### 1. Log in to GHCR
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }} # The user who triggered the workflow
+          password: ${{ secrets.GITHUB_TOKEN }} # Uses the automatic token for authentication
 
-      docker build ./backend \
-        --file backend/Dockerfile \
-        --tag $FULL_IMAGE_SHA \
-        --tag $FULL_IMAGE_TIME \
-        --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest # Add 'latest' tag for convenience
+      ### 2. Build and Tag Image
+      - name: Build and Tag Docker image
+        id: docker_build
+        run: |
+          # Define dynamic tags based on the commit SHA and a Unix timestamp
+          SHA_TAG=${{ github.sha }}
+          TIME_TAG=$(date +%s)
+          
+          # Define the full image paths
+          FULL_IMAGE_SHA=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${SHA_TAG}
+          FULL_IMAGE_TIME=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${TIME_TAG}
+          
+          echo "Building image: $FULL_IMAGE_SHA and $FULL_IMAGE_TIME"
 
-  # --- Push Step ---
-  - name: Push Docker image to GHCR
-    run: |
-      SHA_TAG=${{ github.sha }}
-      TIME_TAG=$(date +%s)
-      
-      docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${SHA_TAG}
-      docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${TIME_TAG}
-      docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          # Build and apply multiple tags at once
+          docker build ./backend \
+            --file backend/Dockerfile \
+            --tag $FULL_IMAGE_SHA \
+            --tag $FULL_IMAGE_TIME \
+            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest 
+
+      ### 3. Push Image
+      - name: Push Docker image to GHCR
+        run: |
+          SHA_TAG=${{ github.sha }}
+          TIME_TAG=$(date +%s)
+          
+          # Push all three tagged versions to the registry
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${SHA_TAG}
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${TIME_TAG}
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
