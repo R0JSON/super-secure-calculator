@@ -71,7 +71,7 @@ def create_calculation(
         case "div":
             if not calculation_in.operand_b:
                 raise HTTPException(status_code=400, detail="Can't divide by zero!")
-            result = calculation_in.operand_a / calculation_in.operand_b
+            result = int(calculation_in.operand_a / calculation_in.operand_b)
     calculation = Calculation.model_validate(calculation_in, update={"owner_id": current_user.id, "result": result})
     session.add(calculation)
     session.commit()
