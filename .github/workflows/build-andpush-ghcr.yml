@@ -7,14 +7,12 @@ on:
       - test
 
 env:
-  # Standard environment variables
   ENVIRONMENT: staging
   DOMAIN: ${{ secrets.DOMAIN_STAGING }}
   SECRET_KEY: ${{ secrets.SECRET_KEY }}
   FIRST_SUPERUSER: ${{ secrets.FIRST_SUPERUSER }}
   FIRST_SUPERUSER_PASSWORD: ${{ secrets.FIRST_SUPERUSER_PASSWORD }}
   POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-
   IMAGE_NAME: ssc-backend
 
 jobs:
@@ -25,60 +23,51 @@ jobs:
       contents: read
 
     outputs:
-      image_full: ${{ secrets.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+      image_full: ${{ steps.set_output.outputs.image_full }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      ### 1. Log in to Azure
       - name: Login to Azure
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      ### 2. Log in to ACR using Azure CLI
       - name: Log in to Azure Container Registry
         run: |
           echo "Logging into ACR: ${{ secrets.ACR_NAME }}"
           az acr login --name ${{ secrets.ACR_NAME }}
 
-      ### 3. Build and Tag Image
       - name: Build and Tag Docker image
-        id: docker_build
         run: |
-          # Define dynamic tags
           SHA_TAG=${{ github.sha }}
           TIME_TAG=$(date +%s)
-          
-          echo "SHA_TAG=${SHA_TAG}" >> $GITHUB_OUTPUT
-          echo "TIME_TAG=${TIME_TAG}" >> $GITHUB_OUTPUT
-
-          # Zbuduj pełny URL ACR
           ACR_REGISTRY="${{ secrets.ACR_NAME }}.azurecr.io"
           
-          # ACR tags
-          ACR_SHA_TAG="${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${SHA_TAG}"
-          ACR_TIME_TAG="${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${TIME_TAG}"
-          ACR_LATEST_TAG="${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:latest"
+          echo "Building images:"
+          echo " - ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${SHA_TAG}"
+          echo " - ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${TIME_TAG}"
+          echo " - ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:latest"
 
-          echo "Building ACR images:"
-          echo " - ${ACR_SHA_TAG}"
-          echo " - ${ACR_TIME_TAG}" 
-          echo " - ${ACR_LATEST_TAG}"
-
-          # Build with ACR tags
           docker build ./backend \
             --file backend/Dockerfile \
-            --tag $ACR_SHA_TAG \
-            --tag $ACR_TIME_TAG \
-            --tag $ACR_LATEST_TAG
+            --tag ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${SHA_TAG} \
+            --tag ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${TIME_TAG} \
+            --tag ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:latest
 
-      ### 4. Push to ACR
+      - name: Set output variable
+        id: set_output
+        run: |
+          ACR_REGISTRY="${{ secrets.ACR_NAME }}.azurecr.io"
+          IMAGE_FULL="${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo "image_full=${IMAGE_FULL}" >> $GITHUB_OUTPUT
+          echo "Set IMAGE_FULL: ${IMAGE_FULL}"
+
       - name: Push Docker image to ACR
         run: |
-          SHA_TAG=${{ steps.docker_build.outputs.SHA_TAG }}
-          TIME_TAG=${{ steps.docker_build.outputs.TIME_TAG }}
+          SHA_TAG=${{ github.sha }}
+          TIME_TAG=$(date +%s)
           ACR_REGISTRY="${{ secrets.ACR_NAME }}.azurecr.io"
 
           echo "Pushing to ACR:"
@@ -102,15 +91,15 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Ensure Azure CLI extension for containerapp is available
+      - name: Debug - Check output variable
         run: |
-          az extension add --name containerapp --upgrade || echo "containerapp extension present"
+          echo "IMAGE_FULL from previous job: ${{ needs.build_and_push.outputs.image_full }}"
 
       - name: Update Azure Container App image
-        env:
-          IMAGE_FULL: ${{ needs.build_and_push.outputs.image_full }}
         run: |
+          IMAGE_FULL="${{ needs.build_and_push.outputs.image_full }}"
           echo "Updating Container App with image: $IMAGE_FULL"
+          
           az containerapp update \
             --name super-sec-calc-api-app \
             --resource-group super-sec-calc-rg \
