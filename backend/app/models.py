@@ -1,6 +1,6 @@
-import uuid
 import enum
-from typing import Literal
+import uuid
+
 from pydantic import EmailStr
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -72,8 +72,8 @@ class CalculationBase(SQLModel):
 # Properties to receive on item update
 class CalculationUpdate(SQLModel):
     operand_a: int
-    operand_b: int 
-    operation: OperationType 
+    operand_b: int
+    operation: OperationType
 
 class CalculationCreate(CalculationUpdate):
     pass

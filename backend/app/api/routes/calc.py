@@ -1,11 +1,16 @@
 import uuid
-from typing import Any 
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from sqlmodel import func, select
 
 from app.api.deps import CurrentUser, SessionDep
-from app.models import Calculation, CalculationCreate, CalculationsPublic, CalculationPublic ,CalculationUpdate,  Message, OperationType
+from app.models import (
+    Calculation,
+    CalculationCreate,
+    CalculationPublic,
+    CalculationsPublic,
+)
 
 router = APIRouter(prefix="/calculations", tags=["calculations"])
 
