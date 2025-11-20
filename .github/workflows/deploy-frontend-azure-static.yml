@@ -41,6 +41,10 @@ jobs:
       - name: Install dependencies
         working-directory: ${{ env.APP_DIR }}
         run: |
+          npm install
+      - name: Install dependencies
+        working-directory: ${{ env.APP_DIR }}
+        run: |
           npm ci
 
       - name: Build frontend
