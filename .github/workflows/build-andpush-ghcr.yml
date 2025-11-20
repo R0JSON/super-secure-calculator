@@ -4,10 +4,9 @@ on:
   push:
     branches:
       - master
-      - test
 
 env:
-  # Standard environment variables are kept here
+  # Standard environment variables
   ENVIRONMENT: staging
   DOMAIN: ${{ secrets.DOMAIN_STAGING }}
   SECRET_KEY: ${{ secrets.SECRET_KEY }}
@@ -15,65 +14,73 @@ env:
   FIRST_SUPERUSER_PASSWORD: ${{ secrets.FIRST_SUPERUSER_PASSWORD }}
   POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
 
-  # Variables for GHCR
-  REGISTRY: ghcr.io
-  # Używamy stałej nazwy w lowercase
-  IMAGE_NAME: r0json/super-secure-calculator/ssc-backend
+  # Azure Container Registry configuration
+  ACR_REGISTRY: ${{ secrets.ACR_REGISTRY }}  # np. myregistry.azurecr.io
+  IMAGE_NAME: ssc-backend
 
 jobs:
   build_and_push:
-    name: Build and Push Backend to GHCR
+    name: Build and Push Backend to ACR
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
 
     outputs:
-      image_full: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+      image_full: ${{ env.ACR_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      ### 1. Log in to GHCR
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+      ### 1. Log in to Azure (to daje dostęp do ACR)
+      - name: Login to Azure
+        uses: azure/login@v1
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      ### 2. Build and Tag Image
+      ### 2. Log in to ACR using Azure CLI (bez username/password)
+      - name: Log in to Azure Container Registry
+        run: |
+          az acr login --name ${{ secrets.ACR_REGISTRY }}
+
+      ### 3. Build and Tag Image
       - name: Build and Tag Docker image
+        id: docker_build
         run: |
           # Define dynamic tags
           SHA_TAG=${{ github.sha }}
           TIME_TAG=$(date +%s)
+          
+          echo "SHA_TAG=${SHA_TAG}" >> $GITHUB_OUTPUT
+          echo "TIME_TAG=${TIME_TAG}" >> $GITHUB_OUTPUT
 
-          # Define the full image paths
-          FULL_IMAGE_SHA=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${SHA_TAG}
-          FULL_IMAGE_TIME=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${TIME_TAG}
+          # ACR tags
+          ACR_SHA_TAG=${{ env.ACR_REGISTRY }}/${{ env.IMAGE_NAME }}:${SHA_TAG}
+          ACR_TIME_TAG=${{ env.ACR_REGISTRY }}/${{ env.IMAGE_NAME }}:${TIME_TAG}
+          ACR_LATEST_TAG=${{ env.ACR_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
-          echo "Building image: $FULL_IMAGE_SHA"
-          echo "Additional tag: $FULL_IMAGE_TIME"
+          echo "Building ACR images:"
+          echo " - ${ACR_SHA_TAG}"
+          echo " - ${ACR_TIME_TAG}" 
+          echo " - ${ACR_LATEST_TAG}"
 
-          # Build and apply multiple tags at once
+          # Build with ACR tags
           docker build ./backend \
             --file backend/Dockerfile \
-            --tag $FULL_IMAGE_SHA \
-            --tag $FULL_IMAGE_TIME \
-            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            --tag $ACR_SHA_TAG \
+            --tag $ACR_TIME_TAG \
+            --tag $ACR_LATEST_TAG
 
-      ### 3. Push Image
-      - name: Push Docker image to GHCR
+      ### 4. Push to ACR
+      - name: Push Docker image to ACR
         run: |
-          SHA_TAG=${{ github.sha }}
-          TIME_TAG=$(date +%s)
+          SHA_TAG=${{ steps.docker_build.outputs.SHA_TAG }}
+          TIME_TAG=${{ steps.docker_build.outputs.TIME_TAG }}
 
-          # Push all three tagged versions to the registry
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${SHA_TAG}
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${TIME_TAG}
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          echo "Pushing to ACR:"
+          docker push ${{ env.ACR_REGISTRY }}/${{ env.IMAGE_NAME }}:${SHA_TAG}
+          docker push ${{ env.ACR_REGISTRY }}/${{ env.IMAGE_NAME }}:${TIME_TAG}
+          docker push ${{ env.ACR_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
   deploy_to_azure:
     name: Deploy to Azure Container Apps
