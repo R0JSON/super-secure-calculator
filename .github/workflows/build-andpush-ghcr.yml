@@ -57,7 +57,12 @@ jobs:
           echo "Pushing images to ACR:"
           docker push ${{ env.IMAGE_FULL }}
           docker push ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:latest
-
+          
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.RG_CREDENTIALS }}
+          
       - name: Update Azure Container App
         run: |
           echo "Updating Container App with image: ${{ env.IMAGE_FULL }}"
