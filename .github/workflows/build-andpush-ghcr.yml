@@ -23,7 +23,7 @@ jobs:
       contents: read
 
     outputs:
-      image_full: ${{ steps.set_output.outputs.image_full }}
+      image_full: ${{ steps.set_vars.outputs.image_full }}
 
     steps:
       - name: Checkout repository
@@ -39,11 +39,30 @@ jobs:
           echo "Logging into ACR: ${{ secrets.ACR_NAME }}"
           az acr login --name ${{ secrets.ACR_NAME }}
 
-      - name: Build and Tag Docker image
+      - name: Set common variables
+        id: set_vars
         run: |
           SHA_TAG=${{ github.sha }}
           TIME_TAG=$(date +%s)
           ACR_REGISTRY="${{ secrets.ACR_NAME }}.azurecr.io"
+          IMAGE_FULL="${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${SHA_TAG}"
+          
+          echo "SHA_TAG=${SHA_TAG}" >> $GITHUB_OUTPUT
+          echo "TIME_TAG=${TIME_TAG}" >> $GITHUB_OUTPUT
+          echo "ACR_REGISTRY=${ACR_REGISTRY}" >> $GITHUB_OUTPUT
+          echo "image_full=${IMAGE_FULL}" >> $GITHUB_OUTPUT
+          
+          echo "Variables set:"
+          echo "SHA_TAG: ${SHA_TAG}"
+          echo "TIME_TAG: ${TIME_TAG}"
+          echo "ACR_REGISTRY: ${ACR_REGISTRY}"
+          echo "IMAGE_FULL: ${IMAGE_FULL}"
+
+      - name: Build and Tag Docker image
+        run: |
+          SHA_TAG=${{ steps.set_vars.outputs.SHA_TAG }}
+          TIME_TAG=${{ steps.set_vars.outputs.TIME_TAG }}
+          ACR_REGISTRY=${{ steps.set_vars.outputs.ACR_REGISTRY }}
           
           echo "Building images:"
           echo " - ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${SHA_TAG}"
@@ -56,23 +75,20 @@ jobs:
             --tag ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${TIME_TAG} \
             --tag ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:latest
 
-      - name: Set output variable
-        id: set_output
-        run: |
-          ACR_REGISTRY="${{ secrets.ACR_NAME }}.azurecr.io"
-          IMAGE_FULL="${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-          echo "image_full=${IMAGE_FULL}" >> $GITHUB_OUTPUT
-          echo "Set IMAGE_FULL: ${IMAGE_FULL}"
-
       - name: Push Docker image to ACR
         run: |
-          SHA_TAG=${{ github.sha }}
-          TIME_TAG=$(date +%s)
-          ACR_REGISTRY="${{ secrets.ACR_NAME }}.azurecr.io"
+          SHA_TAG=${{ steps.set_vars.outputs.SHA_TAG }}
+          TIME_TAG=${{ steps.set_vars.outputs.TIME_TAG }}
+          ACR_REGISTRY=${{ steps.set_vars.outputs.ACR_REGISTRY }}
 
           echo "Pushing to ACR:"
+          echo "Pushing: ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${SHA_TAG}"
           docker push ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${SHA_TAG}
+          
+          echo "Pushing: ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${TIME_TAG}"
           docker push ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${TIME_TAG}
+          
+          echo "Pushing: ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:latest"
           docker push ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:latest
 
   deploy_to_azure:
