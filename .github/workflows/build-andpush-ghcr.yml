@@ -17,8 +17,8 @@ env:
 
   # Variables for GHCR
   REGISTRY: ghcr.io
-  # FIX: Force everything to lowercase
-  IMAGE_NAME: ${{ lower(github.repository) }}/ssc-backend
+  # Używamy stałej nazwy w lowercase
+  IMAGE_NAME: r0json/super-secure-calculator/ssc-backend
 
 jobs:
   build_and_push:
