@@ -83,7 +83,6 @@ class CalculationUpdate(SQLModel):
     operand_b: int
     operation: OperationType
 
-
 class CalculationCreate(CalculationUpdate):
     pass
 

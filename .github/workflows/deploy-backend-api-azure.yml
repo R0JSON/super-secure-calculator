@@ -1,0 +1,81 @@
+name: Build, Push and Deploy Backend
+
+on:
+  push:
+    branches:
+      - master
+      - test
+
+env:
+  ENVIRONMENT: staging
+  DOMAIN: ${{ secrets.DOMAIN_STAGING }}
+  SECRET_KEY: ${{ secrets.SECRET_KEY }}
+  FIRST_SUPERUSER: ${{ secrets.FIRST_SUPERUSER }}
+  FIRST_SUPERUSER_PASSWORD: ${{ secrets.FIRST_SUPERUSER_PASSWORD }}
+  POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+  IMAGE_NAME: ssc-backend
+
+jobs:
+  build_push_deploy:
+    name: Build, Push and Deploy
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Log in to Azure Container Registry
+        run: |
+          az acr login --name ${{ secrets.ACR_NAME }}
+
+      - name: Build and tag Docker image
+        id: build
+        run: |
+          ACR_REGISTRY="${{ secrets.ACR_NAME }}.azurecr.io"
+          IMAGE_FULL="${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          
+          echo "Building: $IMAGE_FULL"
+          
+          docker build ./backend \
+            --file backend/Dockerfile \
+            --tag $IMAGE_FULL \
+            --tag ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:latest
+          
+          echo "IMAGE_FULL=${IMAGE_FULL}" >> $GITHUB_ENV
+
+      - name: Push Docker image to ACR
+        run: |
+          ACR_REGISTRY="${{ secrets.ACR_NAME }}.azurecr.io"
+          
+          echo "Pushing images to ACR:"
+          docker push ${{ env.IMAGE_FULL }}
+          docker push ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:latest
+          
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.RG_CREDENTIALS }}
+          
+      - name: Update Azure Container App
+        run: |
+          echo "Updating Container App with image: ${{ env.IMAGE_FULL }}"
+          
+          az containerapp update \
+            --name super-sec-calc-api-app \
+            --resource-group super-sec-calc-rg \
+            --image "${{ env.IMAGE_FULL }}"
+
+      - name: Verify deployment
+        run: |
+          echo "Verifying deployment..."
+          az containerapp show \
+            --name super-sec-calc-api-app \
+            --resource-group super-sec-calc-rg \
+            --query "{name:name, latestImage:properties.template.containers[0].image, url:properties.configuration.ingress.fqdn}" -o table
