@@ -15,8 +15,6 @@ env:
   FIRST_SUPERUSER_PASSWORD: ${{ secrets.FIRST_SUPERUSER_PASSWORD }}
   POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
 
-  # Azure Container Registry configuration
-  ACR_REGISTRY: ${{ secrets.ACR_REGISTRY }}  # np. myregistry.azurecr.io
   IMAGE_NAME: ssc-backend
 
 jobs:
@@ -27,22 +25,23 @@ jobs:
       contents: read
 
     outputs:
-      image_full: ${{ env.ACR_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+      image_full: ${{ secrets.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      ### 1. Log in to Azure (to daje dostęp do ACR)
+      ### 1. Log in to Azure
       - name: Login to Azure
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      ### 2. Log in to ACR using Azure CLI (bez username/password)
+      ### 2. Log in to ACR using Azure CLI
       - name: Log in to Azure Container Registry
         run: |
-          az acr login --name ${{ secrets.ACR_REGISTRY }}
+          echo "Logging into ACR: ${{ secrets.ACR_NAME }}"
+          az acr login --name ${{ secrets.ACR_NAME }}
 
       ### 3. Build and Tag Image
       - name: Build and Tag Docker image
@@ -55,10 +54,13 @@ jobs:
           echo "SHA_TAG=${SHA_TAG}" >> $GITHUB_OUTPUT
           echo "TIME_TAG=${TIME_TAG}" >> $GITHUB_OUTPUT
 
+          # Zbuduj pełny URL ACR
+          ACR_REGISTRY="${{ secrets.ACR_NAME }}.azurecr.io"
+          
           # ACR tags
-          ACR_SHA_TAG=${{ env.ACR_REGISTRY }}/${{ env.IMAGE_NAME }}:${SHA_TAG}
-          ACR_TIME_TAG=${{ env.ACR_REGISTRY }}/${{ env.IMAGE_NAME }}:${TIME_TAG}
-          ACR_LATEST_TAG=${{ env.ACR_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          ACR_SHA_TAG="${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${SHA_TAG}"
+          ACR_TIME_TAG="${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${TIME_TAG}"
+          ACR_LATEST_TAG="${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:latest"
 
           echo "Building ACR images:"
           echo " - ${ACR_SHA_TAG}"
@@ -77,11 +79,12 @@ jobs:
         run: |
           SHA_TAG=${{ steps.docker_build.outputs.SHA_TAG }}
           TIME_TAG=${{ steps.docker_build.outputs.TIME_TAG }}
+          ACR_REGISTRY="${{ secrets.ACR_NAME }}.azurecr.io"
 
           echo "Pushing to ACR:"
-          docker push ${{ env.ACR_REGISTRY }}/${{ env.IMAGE_NAME }}:${SHA_TAG}
-          docker push ${{ env.ACR_REGISTRY }}/${{ env.IMAGE_NAME }}:${TIME_TAG}
-          docker push ${{ env.ACR_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          docker push ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${SHA_TAG}
+          docker push ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${TIME_TAG}
+          docker push ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:latest
 
   deploy_to_azure:
     name: Deploy to Azure Container Apps
