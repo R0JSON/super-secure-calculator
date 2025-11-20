@@ -32,16 +32,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
+      - name: Install dependencies
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          npm install
       - name: Use Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
 
-      - name: Install dependencies
-        working-directory: ${{ env.APP_DIR }}
-        run: |
-          npm install
       - name: Install dependencies
         working-directory: ${{ env.APP_DIR }}
         run: |
