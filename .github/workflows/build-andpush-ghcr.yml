@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - test
 
 env:
   # Standard environment variables are kept here
