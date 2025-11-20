@@ -3,7 +3,8 @@ name: CI/CD → Build, Push to GHCR, Deploy to Azure Container Apps
 on:
   push:
     branches:
-      - master   # zmień na 'main' jeśli używasz main
+      - master
+      - test 
 
 env:
   REGISTRY: ghcr.io
