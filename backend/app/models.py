@@ -44,7 +44,10 @@ class UpdatePassword(SQLModel):
 class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hashed_password: str
-    calculations: list["Calculation"] = Relationship(back_populates="owner", cascade_delete=True)
+    calculations: list["Calculation"] = Relationship(
+        back_populates="owner", cascade_delete=True
+    )
+
 
 # Properties to return via API, id is always required
 class UserPublic(UserBase):
@@ -55,17 +58,22 @@ class UsersPublic(SQLModel):
     data: list[UserPublic]
     count: int
 
+
 class OperationType(str, enum.Enum):
     add = "add"
     sub = "sub"
     mul = "mul"
     div = "div"
+
+
 # Shared properties
 class CalculationBase(SQLModel):
     result: int | None = Field(default=None)
     operand_a: int | None = Field(default=None)
     operand_b: int | None = Field(default=None)
     operation: OperationType | None = Field(default=None)
+
+
 # Properties to receive on item creation
 
 
@@ -75,8 +83,10 @@ class CalculationUpdate(SQLModel):
     operand_b: int
     operation: OperationType
 
+
 class CalculationCreate(CalculationUpdate):
     pass
+
 
 # Database model, database table inferred from class name
 class Calculation(CalculationBase, table=True):

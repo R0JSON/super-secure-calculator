@@ -46,7 +46,9 @@ def authenticate(*, session: Session, email: str, password: str) -> User | None:
     return db_user
 
 
-def create_item(*, session: Session, item_in: CalculationCreate, owner_id: uuid.UUID) -> Calculation:
+def create_item(
+    *, session: Session, item_in: CalculationCreate, owner_id: uuid.UUID
+) -> Calculation:
     db_item = Calculation.model_validate(item_in, update={"owner_id": owner_id})
     session.add(db_item)
     session.commit()

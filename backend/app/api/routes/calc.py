@@ -47,7 +47,9 @@ def read_calculations(
 
 
 @router.get("/{id}", response_model=CalculationPublic)
-def read_calculation(session: SessionDep, current_user: CurrentUser, id: uuid.UUID) -> Any:
+def read_calculation(
+    session: SessionDep, current_user: CurrentUser, id: uuid.UUID
+) -> Any:
     """
     Get calculation by ID.
     """
@@ -77,7 +79,9 @@ def create_calculation(
             if not calculation_in.operand_b:
                 raise HTTPException(status_code=400, detail="Can't divide by zero!")
             result = int(calculation_in.operand_a / calculation_in.operand_b)
-    calculation = Calculation.model_validate(calculation_in, update={"owner_id": current_user.id, "result": result})
+    calculation = Calculation.model_validate(
+        calculation_in, update={"owner_id": current_user.id, "result": result}
+    )
     session.add(calculation)
     session.commit()
     session.refresh(calculation)
