@@ -16,14 +16,11 @@ env:
   IMAGE_NAME: ssc-backend
 
 jobs:
-  build_and_push:
-    name: Build and Push Backend to ACR
+  build_push_deploy:
+    name: Build, Push and Deploy
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    outputs:
-      image_full: ${{ steps.set_vars.outputs.image_full }}
+    environment:
+      name: staging
 
     steps:
       - name: Checkout repository
@@ -36,95 +33,44 @@ jobs:
 
       - name: Log in to Azure Container Registry
         run: |
-          echo "Logging into ACR: ${{ secrets.ACR_NAME }}"
           az acr login --name ${{ secrets.ACR_NAME }}
 
-      - name: Set common variables
-        id: set_vars
+      - name: Build and tag Docker image
+        id: build
         run: |
-          SHA_TAG=${{ github.sha }}
-          TIME_TAG=$(date +%s)
           ACR_REGISTRY="${{ secrets.ACR_NAME }}.azurecr.io"
-          IMAGE_FULL="${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${SHA_TAG}"
+          IMAGE_FULL="${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
           
-          echo "SHA_TAG=${SHA_TAG}" >> $GITHUB_OUTPUT
-          echo "TIME_TAG=${TIME_TAG}" >> $GITHUB_OUTPUT
-          echo "ACR_REGISTRY=${ACR_REGISTRY}" >> $GITHUB_OUTPUT
-          echo "image_full=${IMAGE_FULL}" >> $GITHUB_OUTPUT
+          echo "Building: $IMAGE_FULL"
           
-          echo "Variables set:"
-          echo "SHA_TAG: ${SHA_TAG}"
-          echo "TIME_TAG: ${TIME_TAG}"
-          echo "ACR_REGISTRY: ${ACR_REGISTRY}"
-          echo "IMAGE_FULL: ${IMAGE_FULL}"
-
-      - name: Build and Tag Docker image
-        run: |
-          SHA_TAG=${{ steps.set_vars.outputs.SHA_TAG }}
-          TIME_TAG=${{ steps.set_vars.outputs.TIME_TAG }}
-          ACR_REGISTRY=${{ steps.set_vars.outputs.ACR_REGISTRY }}
-          
-          echo "Building images:"
-          echo " - ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${SHA_TAG}"
-          echo " - ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${TIME_TAG}"
-          echo " - ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:latest"
-
           docker build ./backend \
             --file backend/Dockerfile \
-            --tag ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${SHA_TAG} \
-            --tag ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${TIME_TAG} \
+            --tag $IMAGE_FULL \
             --tag ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:latest
+          
+          echo "IMAGE_FULL=${IMAGE_FULL}" >> $GITHUB_ENV
 
       - name: Push Docker image to ACR
         run: |
-          SHA_TAG=${{ steps.set_vars.outputs.SHA_TAG }}
-          TIME_TAG=${{ steps.set_vars.outputs.TIME_TAG }}
-          ACR_REGISTRY=${{ steps.set_vars.outputs.ACR_REGISTRY }}
-
-          echo "Pushing to ACR:"
-          echo "Pushing: ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${SHA_TAG}"
-          docker push ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${SHA_TAG}
+          ACR_REGISTRY="${{ secrets.ACR_NAME }}.azurecr.io"
           
-          echo "Pushing: ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${TIME_TAG}"
-          docker push ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${TIME_TAG}
-          
-          echo "Pushing: ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:latest"
+          echo "Pushing images to ACR:"
+          docker push ${{ env.IMAGE_FULL }}
           docker push ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:latest
 
-  deploy_to_azure:
-    name: Deploy to Azure Container Apps
-    runs-on: ubuntu-latest
-    needs: build_and_push
-    environment:
-      name: staging
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Login to Azure
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Debug - Check output variable
+      - name: Update Azure Container App
         run: |
-          echo "IMAGE_FULL from previous job: ${{ needs.build_and_push.outputs.image_full }}"
-
-      - name: Update Azure Container App image
-        run: |
-          IMAGE_FULL="${{ needs.build_and_push.outputs.image_full }}"
-          echo "Updating Container App with image: $IMAGE_FULL"
+          echo "Updating Container App with image: ${{ env.IMAGE_FULL }}"
           
           az containerapp update \
             --name super-sec-calc-api-app \
             --resource-group super-sec-calc-rg \
-            --image "$IMAGE_FULL" \
-            --query "properties.configuration"
+            --image "${{ env.IMAGE_FULL }}"
 
-      - name: Show latest Container App revision (verify)
+      - name: Verify deployment
         run: |
+          echo "Verifying deployment..."
           az containerapp show \
             --name super-sec-calc-api-app \
             --resource-group super-sec-calc-rg \
-            --query "{name:name, latestImage:properties.template.containers[0].image, url:properties.configuration.ingress.fqdn}" -o json
+            --query "{name:name, latestImage:properties.template.containers[0].image, url:properties.configuration.ingress.fqdn}" -o table
