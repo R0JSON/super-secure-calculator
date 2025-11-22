@@ -6,12 +6,8 @@ on:
   pull_request:
     branches: ["master"]
 
-permissions:
-  contents: read
-  security-events: write # Dla Trivy SAST
-  actions: read
-  issues: write # <--- DODAJ TO (Dla ZAP DAST, żeby mógł zakładać tickety)
-  checks: write # Opcjonalnie dla raportów
+permissions: read-all
+
 jobs:
   # ------------------------------------------------------------------
   # 1. SAST: Statyczna analiza kodu (Trivy)
@@ -38,7 +34,7 @@ jobs:
           output: "trivy-results.sarif"
           severity: "CRITICAL,HIGH"
           ignore-unfixed: true
-          exit-code: 1 # Przerwij pipeline, jeśli znajdziesz krytyczne błędy w kodzie/zależnościach
+          exit-code: 1
 
       - name: Upload Trivy Result to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
@@ -47,18 +43,22 @@ jobs:
           sarif_file: "trivy-results.sarif"
 
   # ------------------------------------------------------------------
-  # 2b. API SCAN: Skanowanie bezpośrednio Backend (FastAPI/OpenAPI)
+  # 2a. API SCAN: Skanowanie Backend (Parallel)
   # ------------------------------------------------------------------
   api-scan:
     name: API Security Scan (ZAP)
-    needs: sast-scan # Możesz dać 'dast-scan' jeśli chcesz kolejno
+    needs: sast-scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write # Do tworzenia zgłoszeń
+      checks: write
+      actions: write # Naprawa błędu autoryzacji artefaktów
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Musimy postawić środowisko, tak samo jak przy frontendzie
       - name: Create .env file
         run: |
           cat <<EOF > .env
@@ -85,40 +85,49 @@ jobs:
           echo "⏳ Waiting for backend to be ready..."
           sleep 45
 
-      # Sprawdźmy czy plik openapi.json jest dostępny
-      # Backend w Twoim docker-compose jest mapowany na 8080:8000
       - name: Check OpenAPI accessibility
         run: curl -v http://localhost:8080/api/v1/openapi.json || exit 1
 
       # Uruchamiamy skaner API
       - name: ZAP API Scan
         uses: zaproxy/action-api-scan@v0.7.0
+        continue-on-error: true # IGNORUJEMY BŁĘDY WEWNĘTRZNEGO UPLOADU
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          # Adres do pliku definicji w FastAPI (domyślnie /openapi.json lub /api/v1/openapi.json - sprawdź u siebie!)
           target: "http://localhost:8080/api/v1/openapi.json"
           format: "openapi"
-          fail_action: false # Na razie nie blokujmy
+          fail_action: false
           allow_issue_writing: true
-          artifact_name: "zap-scan-api"
+          # Usunąłem 'artifact_name', zrobimy to ręcznie poniżej
+
+      # Ręczny upload raportu - to zawsze działa
+      - name: Upload API Scan Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-scan-report-api
+          path: report_html.html
+
       - name: Stop Environment
         if: always()
         run: docker compose down
+
   # ------------------------------------------------------------------
-  # 2. DAST: Dynamiczna analiza na uruchomionym docker-compose
+  # 2b. DAST SCAN: Skanowanie Frontend (Parallel)
   # ------------------------------------------------------------------
   dast-scan:
     name: DAST Scan (OWASP ZAP)
     needs: sast-scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      checks: write
+      actions: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # KROK KLUCZOWY: Tworzenie pliku .env dla środowiska CI
-      # GitHub Actions nie ma Twojego lokalnego pliku .env, więc musimy go stworzyć.
-      # Używamy wartości testowych (nieprodukcyjnych!).
       - name: Create .env file
         run: |
           cat <<EOF > .env
@@ -139,34 +148,36 @@ jobs:
           SENTRY_DSN=
           EOF
 
-      # Uruchamiamy aplikację
       - name: Start Environment
         continue-on-error: true
         run: |
           docker compose up -d --build
-
           echo "⏳ Waiting for services to stabilize..."
-          # Czekamy, aż 'prestart' wykona migracje i backend wstanie.
-          # Twój backend ma healthcheck, więc możemy na nim polegać.
           sleep 45
-      - name: Check Containers Status
-        if: always()
-        run: docker compose ps -a
 
-      # Sprawdzamy czy Frontend (port 3000) odpowiada
       - name: Check Connectivity
         run: |
           curl -v http://localhost:3000 || exit 1
 
-      # Uruchamiamy skaner OWASP ZAP na porcie Frontendu (3000)
+      # Uruchamiamy skaner OWASP ZAP
       - name: OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.14.0
+        continue-on-error: true # IGNORUJEMY BŁĘDY WEWNĘTRZNEGO UPLOADU
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           target: "http://localhost:3000"
           fail_action: false
-          cmd_options: "-a" # Włącza reguły pasywne alpha
-          artifact_name: "zap-scan-frontend"
+          cmd_options: "-a"
+          allow_issue_writing: true
+          # Usunąłem 'artifact_name', zrobimy to ręcznie poniżej
+
+      # Ręczny upload raportu
+      - name: Upload Frontend Scan Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-scan-report-frontend
+          path: report_html.html
+
       - name: Stop Environment
         if: always()
         run: docker compose down
@@ -190,11 +201,9 @@ jobs:
       - name: Install Cosign
         uses: sigstore/cosign-installer@v3.3.0
 
-      # Pakujemy kod źródłowy jako artefakt release'u
       - name: Create Release Archive
         run: tar -czvf release.tar.gz backend frontend docker-compose.yml
 
-      # Podpisujemy
       - name: Sign Artifact (Keyless)
         run: |
           cosign sign-blob --yes release.tar.gz --output-certificate release.crt --output-signature release.sig
