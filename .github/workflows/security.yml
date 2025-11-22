@@ -6,8 +6,12 @@ on:
   pull_request:
     branches: ["master"]
 
-permissions: read-all
-
+permissions:
+  contents: read
+  security-events: write # Dla Trivy SAST
+  actions: read
+  issues: write # <--- DODAJ TO (Dla ZAP DAST, żeby mógł zakładać tickety)
+  checks: write # Opcjonalnie dla raportów
 jobs:
   # ------------------------------------------------------------------
   # 1. SAST: Statyczna analiza kodu (Trivy)
