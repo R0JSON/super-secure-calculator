@@ -1,0 +1,145 @@
+name: Security Pipeline (SAST & DAST)
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions: read-all
+
+jobs:
+  # ------------------------------------------------------------------
+  # 1. SAST: Statyczna analiza kodu (Trivy)
+  # ------------------------------------------------------------------
+  sast-scan:
+    name: SAST Scan (Trivy)
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: "fs"
+          scan-ref: "."
+          format: "sarif"
+          output: "trivy-results.sarif"
+          severity: "CRITICAL,HIGH"
+          ignore-unfixed: true
+          exit-code: 1 # Przerwij pipeline, jeśli znajdziesz krytyczne błędy w kodzie/zależnościach
+
+      - name: Upload Trivy Result to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: "trivy-results.sarif"
+
+  # ------------------------------------------------------------------
+  # 2. DAST: Dynamiczna analiza na uruchomionym docker-compose
+  # ------------------------------------------------------------------
+  dast-scan:
+    name: DAST Scan (OWASP ZAP)
+    needs: sast-scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # KROK KLUCZOWY: Tworzenie pliku .env dla środowiska CI
+      # GitHub Actions nie ma Twojego lokalnego pliku .env, więc musimy go stworzyć.
+      # Używamy wartości testowych (nieprodukcyjnych!).
+      - name: Create .env file
+        run: |
+          cat <<EOF > .env
+          DOMAIN=localhost
+          ENVIRONMENT=local
+          PROJECT_NAME=SuperSecureCalc
+          POSTGRES_SERVER=db
+          POSTGRES_PORT=5432
+          POSTGRES_DB=app
+          POSTGRES_USER=postgres
+          POSTGRES_PASSWORD=changethis123
+          SECRET_KEY=super-secret-test-key-change-me
+          FIRST_SUPERUSER=admin@example.com
+          FIRST_SUPERUSER_PASSWORD=admin
+          BACKEND_CORS_ORIGINS=["http://localhost:3000", "http://localhost:8080"]
+          FRONTEND_HOST=localhost
+          FRONTEND_PORT=3000
+          SENTRY_DSN=
+          EOF
+
+      # Uruchamiamy aplikację
+      - name: Start Environment
+        run: |
+          docker compose up -d --build
+
+          echo "⏳ Waiting for services to stabilize..."
+          # Czekamy, aż 'prestart' wykona migracje i backend wstanie.
+          # Twój backend ma healthcheck, więc możemy na nim polegać.
+          sleep 45
+
+      # Sprawdzamy logi kontenerów w przypadku błędu (dla łatwiejszego debugowania)
+      - name: Check Containers Status
+        if: always()
+        run: docker compose ps -a
+
+      # Sprawdzamy czy Frontend (port 3000) odpowiada
+      - name: Check Connectivity
+        run: |
+          curl -v http://localhost:3000 || exit 1
+
+      # Uruchamiamy skaner OWASP ZAP na porcie Frontendu (3000)
+      - name: OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          target: "http://localhost:3000"
+          fail_action: true
+          cmd_options: "-a" # Włącza reguły pasywne alpha
+
+      - name: Stop Environment
+        if: always()
+        run: docker compose down
+
+  # ------------------------------------------------------------------
+  # 3. Podpisywanie Artefaktów (Cosign)
+  # ------------------------------------------------------------------
+  sign-release:
+    name: Sign Release Artifact
+    needs: dast-scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.3.0
+
+      # Pakujemy kod źródłowy jako artefakt release'u
+      - name: Create Release Archive
+        run: tar -czvf release.tar.gz backend frontend docker-compose.yml
+
+      # Podpisujemy
+      - name: Sign Artifact (Keyless)
+        run: |
+          cosign sign-blob --yes release.tar.gz --output-certificate release.crt --output-signature release.sig
+
+      - name: Upload Signed Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-release-package
+          path: |
+            release.tar.gz
+            release.crt
+            release.sig
