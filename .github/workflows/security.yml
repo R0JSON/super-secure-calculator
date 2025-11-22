@@ -100,7 +100,7 @@ jobs:
           format: "openapi"
           fail_action: false # Na razie nie blokujmy
           allow_issue_writing: true
-          artifact_name: "zap_scan_api"
+          artifact_name: "zap-scan-api"
       - name: Stop Environment
         if: always()
         run: docker compose down
@@ -166,7 +166,7 @@ jobs:
           target: "http://localhost:3000"
           fail_action: false
           cmd_options: "-a" # Włącza reguły pasywne alpha
-
+          artifact_name: "zap-scan-frontend"
       - name: Stop Environment
         if: always()
         run: docker compose down
