@@ -159,19 +159,16 @@ jobs:
         run: |
           curl -v http://localhost:3000 || exit 1
 
-      # Uruchamiamy skaner OWASP ZAP
       - name: OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.14.0
-        continue-on-error: true # IGNORUJEMY BŁĘDY WEWNĘTRZNEGO UPLOADU
+        continue-on-error: true
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           target: "http://localhost:3000"
           fail_action: false
           cmd_options: "-a"
           allow_issue_writing: true
-          # Usunąłem 'artifact_name', zrobimy to ręcznie poniżej
 
-      # Ręczny upload raportu
       - name: Upload Frontend Scan Report
         uses: actions/upload-artifact@v4
         with:
