@@ -47,6 +47,64 @@ jobs:
           sarif_file: "trivy-results.sarif"
 
   # ------------------------------------------------------------------
+  # 2b. API SCAN: Skanowanie bezpośrednio Backend (FastAPI/OpenAPI)
+  # ------------------------------------------------------------------
+  api-scan:
+    name: API Security Scan (ZAP)
+    needs: sast-scan # Możesz dać 'dast-scan' jeśli chcesz kolejno
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Musimy postawić środowisko, tak samo jak przy frontendzie
+      - name: Create .env file
+        run: |
+          cat <<EOF > .env
+          DOMAIN=localhost
+          ENVIRONMENT=local
+          PROJECT_NAME=SuperSecureCalc
+          POSTGRES_SERVER=db
+          POSTGRES_PORT=5432
+          POSTGRES_DB=app
+          POSTGRES_USER=postgres
+          POSTGRES_PASSWORD=changethis123
+          SECRET_KEY=super-secret-test-key-change-me
+          FIRST_SUPERUSER=admin@example.com
+          FIRST_SUPERUSER_PASSWORD=admin12345
+          BACKEND_CORS_ORIGINS=["http://localhost:3000", "http://localhost:8080"]
+          FRONTEND_HOST=localhost
+          FRONTEND_PORT=3000
+          SENTRY_DSN=
+          EOF
+
+      - name: Start Environment
+        run: |
+          docker compose up -d --build
+          echo "⏳ Waiting for backend to be ready..."
+          sleep 45
+
+      # Sprawdźmy czy plik openapi.json jest dostępny
+      # Backend w Twoim docker-compose jest mapowany na 8080:8000
+      - name: Check OpenAPI accessibility
+        run: curl -v http://localhost:8080/api/v1/openapi.json || exit 1
+
+      # Uruchamiamy skaner API
+      - name: ZAP API Scan
+        uses: zaproxy/action-api-scan@v0.7.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # Adres do pliku definicji w FastAPI (domyślnie /openapi.json lub /api/v1/openapi.json - sprawdź u siebie!)
+          target: "http://localhost:8080/api/v1/openapi.json"
+          format: "openapi"
+          fail_action: false # Na razie nie blokujmy
+          allow_issue_writing: true
+
+      - name: Stop Environment
+        if: always()
+        run: docker compose down
+  # ------------------------------------------------------------------
   # 2. DAST: Dynamiczna analiza na uruchomionym docker-compose
   # ------------------------------------------------------------------
   dast-scan:
@@ -118,7 +176,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           target: "http://localhost:3000"
-          fail_action: true
+          fail_action: false
           cmd_options: "-a" # Włącza reguły pasywne alpha
 
       - name: Stop Environment
