@@ -123,8 +123,7 @@ jobs:
   sign-release:
     name: Sign Release Artifact
     needs:
-      - dast-scan
-      - api-scan
+      - full-dast-scan
     runs-on: ubuntu-latest
     permissions:
       contents: read
