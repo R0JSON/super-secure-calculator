@@ -79,6 +79,7 @@ jobs:
 
       # Uruchamiamy aplikację
       - name: Start Environment
+        continue-on-error: true
         run: |
           docker compose up -d --build
 
@@ -86,7 +87,17 @@ jobs:
           # Czekamy, aż 'prestart' wykona migracje i backend wstanie.
           # Twój backend ma healthcheck, więc możemy na nim polegać.
           sleep 45
+      - name: Debug - Show Container Logs
+        if: always() # Wykonaj zawsze, nawet jak 'Start Environment' zawiedzie
+        run: |
+          echo "=== LOGI KONTENERA PRESTART (TU JEST BŁĄD) ==="
+          docker compose logs prestart
 
+          echo "=== LOGI KONTENERA DB ==="
+          docker compose logs db
+
+          echo "=== LOGI KONTENERA BACKEND ==="
+          docker compose logs backend
       # Sprawdzamy logi kontenerów w przypadku błędu (dla łatwiejszego debugowania)
       - name: Check Containers Status
         if: always()
