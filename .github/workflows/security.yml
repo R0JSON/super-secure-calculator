@@ -2,9 +2,9 @@ name: Security Pipeline (SAST & DAST)
 
 on:
   push:
-    branches: ["main"]
+    branches: ["master"]
   pull_request:
-    branches: ["main"]
+    branches: ["master"]
 
 permissions: read-all
 
