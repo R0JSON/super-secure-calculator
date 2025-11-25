@@ -101,7 +101,9 @@ jobs:
       - name: Check OpenAPI accessibility
         run: curl -v http://localhost:8080/api/v1/openapi.json || exit 1
 
-
+      - name: Show Database Logs (On Error)
+        if: failure()
+        run: docker compose logs db
 
       # Uruchamiamy skaner API
       - name: ZAP API Scan
@@ -126,9 +128,6 @@ jobs:
         if: always()
         run: docker compose down
 
-      - name: Show Database Logs (On Error)
-              if: failure()
-              run: docker compose logs db
   # ------------------------------------------------------------------
   # 2b. DAST SCAN: Skanowanie Frontend (Parallel)
   # ------------------------------------------------------------------
