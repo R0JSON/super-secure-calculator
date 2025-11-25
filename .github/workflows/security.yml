@@ -8,17 +8,6 @@ on:
 
 permissions: read-all
 
-env:
-  ENVIRONMENT: staging
-  DOMAIN: ${{ secrets.DOMAIN_STAGING }}
-  SECRET_KEY: ${{ secrets.SECRET_KEY }}
-  FIRST_SUPERUSER: ${{ secrets.FIRST_SUPERUSER }}
-  FIRST_SUPERUSER_PASSWORD: ${{ secrets.FIRST_SUPERUSER_PASSWORD }}
-  POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-  IMAGE_NAME: ssc-backend
-  APP_SOURCE_PATH: "frontend"
-  APP_BUILD_OUTPUT_PATH: "frontend/dist"
-  NODE_VERSION: "18"
 
 jobs:
   # ------------------------------------------------------------------
