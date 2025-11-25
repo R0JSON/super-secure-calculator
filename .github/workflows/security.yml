@@ -176,6 +176,12 @@ jobs:
       - name: Start Environment
         continue-on-error: true
         run: |
+          unset ENVIRONMENT
+          unset DOMAIN
+          unset SECRET_KEY
+          unset FIRST_SUPERUSER
+          unset FIRST_SUPERUSER_PASSWORD
+          unset POSTGRES_PASSWORD
           docker compose up -d --build
           echo "⏳ Waiting for services to stabilize..."
           sleep 45
