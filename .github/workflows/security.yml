@@ -97,12 +97,9 @@ jobs:
           echo "⏳ Waiting for backend to be ready..."
           sleep 45
 
-      - name: Show Database Logs on Failure
-              if: failure()
-              run: docker compose logs db
 
-        - name: Check OpenAPI accessibility
-          run: curl -v http://localhost:8080/api/v1/openapi.json || exit 1
+      - name: Check OpenAPI accessibility
+        run: curl -v http://localhost:8080/api/v1/openapi.json || exit 1
 
       # Uruchamiamy skaner API
       - name: ZAP API Scan
