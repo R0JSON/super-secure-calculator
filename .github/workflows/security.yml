@@ -134,26 +134,27 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      #- name: Create .env file
+      #  run: |
+      #    cat <<EOF > .env
+      #    DOMAIN=localhost
+      #    ENVIRONMENT=local
+      #    PROJECT_NAME=SuperSecureCalc
+      #    POSTGRES_SERVER=db
+      #    POSTGRES_PORT=5432
+      #    POSTGRES_DB=app
+      #    POSTGRES_USER=postgres
+      #    POSTGRES_PASSWORD=changethis123
+      #    SECRET_KEY=super-secret-test-key-change-me
+      #    FIRST_SUPERUSER=admin@example.com
+      #    FIRST_SUPERUSER_PASSWORD=admin12345
+      #    BACKEND_CORS_ORIGINS=["http://localhost:3000", "http://localhost:8080"]
+      #    FRONTEND_HOST=localhost
+      #    FRONTEND_PORT=3000
+      #    SENTRY_DSN=
+      #    EOF
       - name: Create .env file
-        run: |
-          cat <<EOF > .env
-          DOMAIN=localhost
-          ENVIRONMENT=local
-          PROJECT_NAME=SuperSecureCalc
-          POSTGRES_SERVER=db
-          POSTGRES_PORT=5432
-          POSTGRES_DB=app
-          POSTGRES_USER=postgres
-          POSTGRES_PASSWORD=changethis123
-          SECRET_KEY=super-secret-test-key-change-me
-          FIRST_SUPERUSER=admin@example.com
-          FIRST_SUPERUSER_PASSWORD=admin12345
-          BACKEND_CORS_ORIGINS=["http://localhost:3000", "http://localhost:8080"]
-          FRONTEND_HOST=localhost
-          FRONTEND_PORT=3000
-          SENTRY_DSN=
-          EOF
-
+        run: cp .env.example .env
       - name: Start Environment
         continue-on-error: true
         run: |
@@ -234,7 +235,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
+        
       - name: Login to Azure
         uses: azure/login@v1
         with:
