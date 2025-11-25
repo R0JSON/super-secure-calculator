@@ -52,6 +52,7 @@ jobs:
   sast-scan:
     name: SAST Scan (Trivy)
     runs-on: ubuntu-latest
+    needs: lint-backend
     permissions:
       security-events: write
       actions: read
