@@ -1,25 +1,26 @@
+import html
+import re
 import uuid
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
-from sqlmodel import select, func
-import html, re
-from app.api.deps import SessionDep, CurrentUser
+from sqlmodel import func, select
+
+from app.api.deps import CurrentUser, SessionDep
 from app.models import (
+    Calculation,
+    Comment,
+    Message,
     Post,
     PostCreate,
-    PostUpdate,
     PostPublic,
+    PostPublicWithOwner,
+    PostsPublic,
+    PostsPublicWithOwners,
+    PostUpdate,
     PostWithCalculation,
     PostWithDetails,
-    PostsPublic,
-    Message,
-    Calculation,
     User,
-    Comment,
-    UserPublic,
-    PostPublicWithOwner,
-    PostsPublicWithOwners,
     UserPublicLimited,
 )
 

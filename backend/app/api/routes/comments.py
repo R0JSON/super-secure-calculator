@@ -1,22 +1,21 @@
+import html
+import re
 import uuid
 from typing import Any
-from fastapi import APIRouter, HTTPException
-from sqlmodel import select, func, col
-import re
-import html
 
-from app.api.deps import SessionDep, CurrentUser
+from fastapi import APIRouter, HTTPException
+from sqlmodel import col, func, select
+
+from app.api.deps import CurrentUser, SessionDep
 from app.models import (
     Comment,
     CommentCreate,
-    CommentPublic,
+    CommentsPublicWithOwners,
     CommentWithOwner,
-    CommentsPublic,
     Message,
     Post,
     User,
     UserPublicLimited,
-    CommentsPublicWithOwners,
 )
 
 router = APIRouter(prefix="/comments", tags=["comments"])
