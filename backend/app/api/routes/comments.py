@@ -29,8 +29,6 @@ def sanitize_comment_content(content: str) -> str:
     if not content:
         return content
 
-    print(f"🔧 Sanitizing comment: '{content}'")  # Debug
-
     # Remove leading/trailing whitespace
     content = content.strip()
 
@@ -56,7 +54,6 @@ def sanitize_comment_content(content: str) -> str:
     # Limit consecutive newlines (keep max 2)
     content = re.sub(r"\n{3,}", "\n\n", content)
 
-    print(f"✅ Sanitized to: '{content}'")  # Debug
     return content
 
 
@@ -117,8 +114,6 @@ def create_comment(
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
 
-    print(f"📨 Received comment: '{comment_in.content}'")  # Debug
-
     # Sanitize content before creating comment (ONLY ONCE)
     sanitized_content = sanitize_comment_content(comment_in.content)
 
@@ -132,8 +127,6 @@ def create_comment(
 
     # Refresh to get the owner relationship loaded
     session.refresh(comment.owner)
-
-    print(f"💾 Stored comment: '{comment.content}'")  # Debug
 
     return CommentWithOwner(
         id=comment.id,

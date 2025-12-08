@@ -33,8 +33,6 @@ def sanitize_description_content(content: str) -> str:
     if not content:
         return content
 
-    print(f"🔧 Sanitizing description: '{content}'")  # Debug
-
     # Remove leading/trailing whitespace
     content = content.strip()
 
@@ -60,7 +58,6 @@ def sanitize_description_content(content: str) -> str:
     # Limit consecutive newlines (keep max 2)
     content = re.sub(r"\n{3,}", "\n\n", content)
 
-    print(f"✅ Sanitized description to: '{content}'")  # Debug
     return content
 
 
@@ -72,9 +69,7 @@ def read_public_posts(session: SessionDep, skip: int = 0, limit: int = 100) -> A
     count_statement = select(func.count()).select_from(Post)
     count = session.exec(count_statement).one()
 
-    statement = (
-        select(Post).join(User).where(User.is_active == True).offset(skip).limit(limit)
-    )
+    statement = select(Post).join(User).where(User.is_active).offset(skip).limit(limit)
     posts = session.exec(statement).all()
 
     posts_with_owners = []
@@ -141,7 +136,7 @@ def read_public_post(session: SessionDep, id: uuid.UUID) -> Any:
         .where(Post.id == id)
         .join(Calculation)
         .join(User)
-        .where(User.is_active == True)
+        .where(User.is_active)
     )
     post = session.exec(statement).first()
 
