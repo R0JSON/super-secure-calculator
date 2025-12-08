@@ -191,12 +191,14 @@ class PostPublic(PostBase):
 
 
 class PostWithCalculation(PostPublic):
-    calculation: "CalculationPublic" | None = None
+    # Removed quotes because CalculationPublic is defined above
+    calculation: CalculationPublic | None = None
 
 
 class PostWithDetails(PostWithCalculation):
     comments: list["CommentPublic"] = []
-    owner: "UserPublic" | None = None
+    # Removed quotes because UserPublic is defined above
+    owner: UserPublic | None = None
 
 
 class PostsPublic(SQLModel):
@@ -206,7 +208,8 @@ class PostsPublic(SQLModel):
 
 # Add these new models for public posts with limited owner information
 class PostPublicWithOwner(PostPublic):
-    owner: "UserPublicLimited" | None = None
+    # Removed quotes because UserPublicLimited is defined above
+    owner: UserPublicLimited | None = None
 
 
 class PostsPublicWithOwners(SQLModel):
@@ -256,7 +259,8 @@ class CommentPublic(CommentBase):
 
 
 class CommentWithOwner(CommentPublic):
-    owner: "UserPublicLimited" | None = None
+    # Removed quotes because UserPublicLimited is defined above
+    owner: UserPublicLimited | None = None
 
 
 class CommentsPublic(SQLModel):
