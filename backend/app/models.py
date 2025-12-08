@@ -1,17 +1,58 @@
 import enum
 import html
-from typing import Literal, TYPE_CHECKING
+import uuid
+from typing import Literal
 from datetime import datetime
 from pydantic import EmailStr, field_validator
-import uuid
 
 from sqlmodel import Field, Relationship, SQLModel
 
-if TYPE_CHECKING:
-    from app.models import Calculation, Post, Comment
+# Public API for mypy
+__all__ = [
+    "UserBase",
+    "UserCreate",
+    "UserRegister",
+    "UserUpdate",
+    "UserUpdateMe",
+    "UpdatePassword",
+    "User",
+    "UserPublic",
+    "UserPublicLimited",
+    "UsersPublic",
+    "OperationType",
+    "CalculationBase",
+    "CalculationCreate",
+    "CalculationUpdate",
+    "Calculation",
+    "CalculationPublic",
+    "CalculationWithPosts",
+    "CalculationsPublic",
+    "Message",
+    "Token",
+    "TokenPayload",
+    "NewPassword",
+    "PostBase",
+    "PostCreate",
+    "PostUpdate",
+    "Post",
+    "PostPublic",
+    "PostWithCalculation",
+    "PostWithDetails",
+    "PostsPublic",
+    "PostPublicWithOwner",
+    "PostsPublicWithOwners",
+    "CommentBase",
+    "CommentCreate",
+    "Comment",
+    "CommentPublic",
+    "CommentWithOwner",
+    "CommentsPublic",
+    "CommentsPublicWithOwners",
+]
+
+# --- USER MODELS ---
 
 
-# Shared properties
 class UserBase(SQLModel):
     email: EmailStr = Field(unique=True, index=True, max_length=255)
     is_active: bool = True
@@ -19,7 +60,6 @@ class UserBase(SQLModel):
     full_name: str | None = Field(default=None, max_length=255)
 
 
-# Properties to receive via API on creation
 class UserCreate(UserBase):
     password: str = Field(min_length=8, max_length=40)
 
@@ -30,7 +70,6 @@ class UserRegister(SQLModel):
     full_name: str | None = Field(default=None, max_length=255)
 
 
-# Properties to receive via API on update, all are optional
 class UserUpdate(UserBase):
     email: EmailStr | None = Field(default=None, max_length=255)  # type: ignore
     password: str | None = Field(default=None, min_length=8, max_length=40)
@@ -46,34 +85,36 @@ class UpdatePassword(SQLModel):
     new_password: str = Field(min_length=8, max_length=40)
 
 
-# Database model, database table inferred from class name
 class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hashed_password: str
+
     calculations: list["Calculation"] = Relationship(
-        back_populates="owner", cascade_delete=True
+        back_populates="owner", cascade_delete=True, default_factory=list
     )
-    posts: list["Post"] = Relationship(back_populates="owner", cascade_delete=True)
+    posts: list["Post"] = Relationship(
+        back_populates="owner", cascade_delete=True, default_factory=list
+    )
     comments: list["Comment"] = Relationship(
-        back_populates="owner", cascade_delete=True
+        back_populates="owner", cascade_delete=True, default_factory=list
     )
 
 
-# Properties to return via API, id is always required
 class UserPublic(UserBase):
     id: uuid.UUID
 
 
-# Add this new model for limited public user information
 class UserPublicLimited(SQLModel):
     id: uuid.UUID
     full_name: str | None = None
-    # Don't include email, is_active, is_superuser
 
 
 class UsersPublic(SQLModel):
     data: list[UserPublic]
     count: int
+
+
+# --- CALCULATION MODELS ---
 
 
 class OperationType(str, enum.Enum):
@@ -83,48 +124,44 @@ class OperationType(str, enum.Enum):
     div = "div"
 
 
-# Shared properties
 class CalculationBase(SQLModel):
-    result: int | None = Field(default=None)
-    operand_a: int | None = Field(default=None)
-    operand_b: int | None = Field(default=None)
-    operation: OperationType | None = Field(default=None)
+    result: int | None = None
+    operand_a: int | None = None
+    operand_b: int | None = None
+    operation: OperationType | None = None
 
 
-# Properties to receive on item creation
 class CalculationCreate(SQLModel):
     operand_a: int
     operand_b: int
     operation: OperationType
 
 
-# Properties to receive on item update
 class CalculationUpdate(SQLModel):
     operand_a: int | None = None
     operand_b: int | None = None
     operation: OperationType | None = None
 
 
-# Database model, database table inferred from class name
 class Calculation(CalculationBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     owner_id: uuid.UUID = Field(
         foreign_key="user.id", nullable=False, ondelete="CASCADE"
     )
+
     owner: "User" = Relationship(back_populates="calculations")
     posts: list["Post"] = Relationship(
-        back_populates="calculation", cascade_delete=True
+        back_populates="calculation", cascade_delete=True, default_factory=list
     )
 
 
-# Properties to return via API, id is always required
 class CalculationPublic(CalculationBase):
     id: uuid.UUID
     owner_id: uuid.UUID
 
 
 class CalculationWithPosts(CalculationPublic):
-    posts: list["PostPublic"] = []
+    posts: list["PostPublic"] = Field(default_factory=list)
 
 
 class CalculationsPublic(SQLModel):
@@ -132,18 +169,18 @@ class CalculationsPublic(SQLModel):
     count: int
 
 
-# Generic message
+# --- MESSAGE TOKENS ---
+
+
 class Message(SQLModel):
     message: str
 
 
-# JSON payload containing access token
 class Token(SQLModel):
     access_token: str
     token_type: str = "bearer"
 
 
-# Contents of JWT token
 class TokenPayload(SQLModel):
     sub: str | None = None
 
@@ -153,16 +190,17 @@ class NewPassword(SQLModel):
     new_password: str = Field(min_length=8, max_length=40)
 
 
+# --- POST MODELS ---
+
+
 class PostBase(SQLModel):
     title: str = Field(max_length=255)
-    description: str | None = Field(
-        default=None, max_length=500
-    )  # Optional description about the calculation
+    description: str | None = Field(default=None, max_length=500)
     created_at: datetime | None = Field(default_factory=datetime.utcnow)
 
 
 class PostCreate(PostBase):
-    calculation_id: uuid.UUID  # Post must be associated with a calculation
+    calculation_id: uuid.UUID
 
 
 class PostUpdate(SQLModel):
@@ -181,7 +219,9 @@ class Post(PostBase, table=True):
 
     owner: "User" = Relationship(back_populates="posts")
     calculation: "Calculation" = Relationship(back_populates="posts")
-    comments: list["Comment"] = Relationship(back_populates="post", cascade_delete=True)
+    comments: list["Comment"] = Relationship(
+        back_populates="post", cascade_delete=True, default_factory=list
+    )
 
 
 class PostPublic(PostBase):
@@ -191,12 +231,12 @@ class PostPublic(PostBase):
 
 
 class PostWithCalculation(PostPublic):
-    calculation: "CalculationPublic" = None
+    calculation: "CalculationPublic | None" = None
 
 
 class PostWithDetails(PostWithCalculation):
-    comments: list["CommentPublic"] = []
-    owner: "UserPublic" = None
+    comments: list["CommentPublic"] = Field(default_factory=list)
+    owner: "UserPublic | None" = None
 
 
 class PostsPublic(SQLModel):
@@ -204,9 +244,8 @@ class PostsPublic(SQLModel):
     count: int
 
 
-# Add these new models for public posts with limited owner information
 class PostPublicWithOwner(PostPublic):
-    owner: "UserPublicLimited" = None
+    owner: "UserPublicLimited | None" = None
 
 
 class PostsPublicWithOwners(SQLModel):
@@ -214,7 +253,7 @@ class PostsPublicWithOwners(SQLModel):
     count: int
 
 
-# --- Comment Models ---
+# --- COMMENT MODELS ---
 
 
 class CommentBase(SQLModel):
@@ -256,7 +295,7 @@ class CommentPublic(CommentBase):
 
 
 class CommentWithOwner(CommentPublic):
-    owner: "UserPublicLimited" = None
+    owner: "UserPublicLimited | None" = None
 
 
 class CommentsPublic(SQLModel):
@@ -267,4 +306,3 @@ class CommentsPublic(SQLModel):
 class CommentsPublicWithOwners(SQLModel):
     data: list[CommentWithOwner]
     count: int
-
