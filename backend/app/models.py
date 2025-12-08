@@ -1,9 +1,9 @@
 import enum
-import uuid
-from datetime import datetime
 from typing import TYPE_CHECKING
-
+from datetime import datetime
 from pydantic import EmailStr, field_validator
+import uuid
+
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
@@ -28,9 +28,8 @@ class UserRegister(SQLModel):
     full_name: str | None = Field(default=None, max_length=255)
 
 
-# Properties to receive via API on update
 class UserUpdate(UserBase):
-    # Nadpisane bez Field(), bo musi mieć dokładnie tę samą sygnaturę
+    # musi być bez Field(), inaczej niezgodny z bazowym typem
     email: EmailStr | None = None
     password: str | None = None
 
@@ -48,7 +47,6 @@ class UpdatePassword(SQLModel):
 class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hashed_password: str
-
     calculations: list["Calculation"] = Relationship(
         back_populates="owner", cascade_delete=True
     )
@@ -104,7 +102,6 @@ class Calculation(CalculationBase, table=True):
         foreign_key="user.id", nullable=False, ondelete="CASCADE"
     )
     owner: "User" = Relationship(back_populates="calculations")
-
     posts: list["Post"] = Relationship(
         back_populates="calculation", cascade_delete=True
     )
@@ -159,7 +156,6 @@ class PostUpdate(SQLModel):
 
 class Post(PostBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-
     owner_id: uuid.UUID = Field(
         foreign_key="user.id", nullable=False, ondelete="CASCADE"
     )
@@ -201,7 +197,6 @@ class PostsPublicWithOwners(SQLModel):
     count: int
 
 
-# Comments
 class CommentBase(SQLModel):
     content: str = Field(max_length=1000)
     created_at: datetime | None = Field(default_factory=datetime.utcnow)
@@ -212,7 +207,7 @@ class CommentCreate(CommentBase):
 
     @field_validator("content")
     @classmethod
-    def validate_content(cls, v: str) -> str:
+    def validate_content_not_empty(cls, v: str) -> str:
         v = v.strip()
         if not v:
             raise ValueError("Comment content cannot be empty")
@@ -223,7 +218,6 @@ class CommentCreate(CommentBase):
 
 class Comment(CommentBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-
     post_id: uuid.UUID = Field(
         foreign_key="post.id", nullable=False, ondelete="CASCADE"
     )
