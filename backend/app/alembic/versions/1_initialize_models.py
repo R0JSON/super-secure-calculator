@@ -5,6 +5,7 @@ Revises:
 Create Date: 2025-10-20
 
 """
+
 from alembic import op
 import sqlalchemy as sa
 import sqlmodel.sql.sqltypes
@@ -20,8 +21,12 @@ depends_on = None
 def upgrade():
     op.create_table(
         "user",
-        sa.Column("id", sa.Uuid(), primary_key=True, default=uuid.uuid4, nullable=False),
-        sa.Column("email", sa.String(length=255), nullable=False, unique=True, index=True),
+        sa.Column(
+            "id", sa.Uuid(), primary_key=True, default=uuid.uuid4, nullable=False
+        ),
+        sa.Column(
+            "email", sa.String(length=255), nullable=False, unique=True, index=True
+        ),
         sa.Column("is_active", sa.Boolean(), nullable=False, default=True),
         sa.Column("is_superuser", sa.Boolean(), nullable=False, default=False),
         sa.Column("full_name", sa.String(length=255), nullable=True),
@@ -30,12 +35,19 @@ def upgrade():
 
     op.create_table(
         "calculation",
-        sa.Column("id", sa.Uuid(), primary_key=True, default=uuid.uuid4, nullable=False),
+        sa.Column(
+            "id", sa.Uuid(), primary_key=True, default=uuid.uuid4, nullable=False
+        ),
         sa.Column("result", sa.Integer(), nullable=True),
         sa.Column("operand_a", sa.Integer(), nullable=True),
         sa.Column("operand_b", sa.Integer(), nullable=True),
         sa.Column("operation", sa.String(), nullable=True),
-        sa.Column("owner_id", sa.Uuid(), sa.ForeignKey("user.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "owner_id",
+            sa.Uuid(),
+            sa.ForeignKey("user.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
     )
 
 

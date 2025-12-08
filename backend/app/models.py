@@ -1,9 +1,9 @@
-import uuid
 import enum
 import html
 from typing import Literal, TYPE_CHECKING
 from datetime import datetime
 from pydantic import EmailStr, field_validator
+
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
@@ -53,6 +53,7 @@ class User(UserBase, table=True):
     comments: list["Comment"] = Relationship(back_populates="owner", cascade_delete=True)
 
 
+
 # Properties to return via API, id is always required
 class UserPublic(UserBase):
     id: uuid.UUID
@@ -97,6 +98,8 @@ class CalculationUpdate(SQLModel):
     operand_a: int | None = None
     operand_b: int | None = None
     operation: OperationType | None = None
+
+
 
 
 # Database model, database table inferred from class name

@@ -1,0 +1,390 @@
+name: Security Pipeline (SAST & DAST)
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+
+permissions: read-all
+
+env:
+  ENVIRONMENT: staging
+  DOMAIN: ${{ secrets.DOMAIN_STAGING }}
+  SECRET_KEY: ${{ secrets.SECRET_KEY }}
+  FIRST_SUPERUSER: ${{ secrets.FIRST_SUPERUSER }}
+  FIRST_SUPERUSER_PASSWORD: ${{ secrets.FIRST_SUPERUSER_PASSWORD }}
+  POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+  IMAGE_NAME: ssc-backend
+  APP_SOURCE_PATH: "frontend"
+  APP_BUILD_OUTPUT_PATH: "frontend/dist"
+  NODE_VERSION: "18"
+
+jobs:
+  lint-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.4.15"
+          enable-cache: true
+      - run: uv run bash scripts/lint.sh
+        working-directory: backend
+        
+      - name: Install pytest for backend
+        working-directory: backend
+        run: uv pip install pytest
+
+      - name: Run backend unit tests
+        working-directory: backend
+        run: uv run pytest -q
+
+  # ------------------------------------------------------------------
+  # 1. SAST: Statyczna analiza kodu (Trivy)
+  # ------------------------------------------------------------------
+  sast-scan:
+    name: SAST Scan (Trivy)
+    runs-on: ubuntu-latest
+    needs: lint-backend
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Trivy Vulnerability Scanner
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: "fs"
+          scan-ref: "."
+          format: "sarif"
+          output: "trivy-results.sarif"
+          severity: "CRITICAL,HIGH"
+          ignore-unfixed: true
+          exit-code: 1
+
+      - name: Upload Trivy Result to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: "trivy-results.sarif"
+
+  # ------------------------------------------------------------------
+  # 2a. API SCAN: Skanowanie Backend (Parallel)
+  # ------------------------------------------------------------------
+  api-scan:
+    name: API Security Scan (ZAP)
+    needs: sast-scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write # Do tworzenia zgłoszeń
+      checks: write
+      actions: write # Naprawa błędu autoryzacji artefaktów
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create .env file
+        run: |
+          cat <<EOF > .env
+          DOMAIN=localhost
+          ENVIRONMENT=local
+          PROJECT_NAME=SuperSecureCalc
+          POSTGRES_SERVER=db
+          POSTGRES_PORT=5432
+          POSTGRES_DB=app
+          POSTGRES_USER=postgres
+          POSTGRES_PASSWORD=changethis123
+          SECRET_KEY=super-secret-test-key-change-me
+          FIRST_SUPERUSER=admin@example.com
+          FIRST_SUPERUSER_PASSWORD=admin12345
+          BACKEND_CORS_ORIGINS=["http://localhost:3000", "http://localhost:8080"]
+          FRONTEND_HOST=localhost
+          FRONTEND_PORT=3000
+          SENTRY_DSN=
+          EOF
+
+      - name: Start Environment
+        run: |
+          unset ENVIRONMENT
+          unset DOMAIN
+          unset SECRET_KEY
+          unset FIRST_SUPERUSER
+          unset FIRST_SUPERUSER_PASSWORD
+          unset POSTGRES_PASSWORD
+
+          docker compose up -d --build
+          echo "⏳ Waiting for backend to be ready..."
+          sleep 45
+
+
+      - name: Check OpenAPI accessibility
+        run: curl -v http://localhost:8080/api/v1/openapi.json || exit 1
+
+      - name: Show Database Logs (On Error)
+        if: failure()
+        run: docker compose logs db
+
+      # Uruchamiamy skaner API
+      - name: ZAP API Scan
+        uses: zaproxy/action-api-scan@v0.7.0
+        continue-on-error: true # IGNORUJEMY BŁĘDY WEWNĘTRZNEGO UPLOADU
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          target: "http://localhost:8080/api/v1/openapi.json"
+          format: "openapi"
+          fail_action: false
+          allow_issue_writing: true
+          # Usunąłem 'artifact_name', zrobimy to ręcznie poniżej
+
+      # Ręczny upload raportu - to zawsze działa
+      - name: Upload API Scan Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-scan-report-api
+          path: report_html.html
+
+      - name: Stop Environment
+        if: always()
+        run: docker compose down
+
+  # ------------------------------------------------------------------
+  # 2b. DAST SCAN: Skanowanie Frontend (Parallel)
+  # ------------------------------------------------------------------
+  dast-scan:
+    name: DAST Scan (OWASP ZAP)
+    needs: sast-scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      checks: write
+      actions: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create .env file
+        run: |
+          cat <<EOF > .env
+          DOMAIN=localhost
+          ENVIRONMENT=local
+          PROJECT_NAME=SuperSecureCalc
+          POSTGRES_SERVER=db
+          POSTGRES_PORT=5432
+          POSTGRES_DB=app
+          POSTGRES_USER=postgres
+          POSTGRES_PASSWORD=changethis123
+          SECRET_KEY=super-secret-test-key-change-me
+          FIRST_SUPERUSER=admin@example.com
+          FIRST_SUPERUSER_PASSWORD=admin12345
+          BACKEND_CORS_ORIGINS=["http://localhost:3000", "http://localhost:8080"]
+          FRONTEND_HOST=localhost
+          FRONTEND_PORT=3000
+          SENTRY_DSN=
+          EOF
+      - name: Create .env file
+        run: cp .env.example .env
+      - name: Start Environment
+        continue-on-error: true
+        run: |
+          unset ENVIRONMENT
+          unset DOMAIN
+          unset SECRET_KEY
+          unset FIRST_SUPERUSER
+          unset FIRST_SUPERUSER_PASSWORD
+          unset POSTGRES_PASSWORD
+          docker compose up -d --build
+          echo "⏳ Waiting for services to stabilize..."
+          sleep 45
+
+      - name: Check Connectivity
+        run: |
+          curl -v http://localhost:3000 || exit 1
+
+      - name: OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.14.0
+        continue-on-error: true
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          target: "http://localhost:3000"
+          fail_action: false
+          cmd_options: "-a"
+          allow_issue_writing: true
+
+      - name: Upload Frontend Scan Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-scan-report-frontend
+          path: report_html.html
+
+      - name: Stop Environment
+        if: always()
+        run: docker compose down
+
+  # ------------------------------------------------------------------
+  # 3. Podpisywanie Artefaktów (Cosign)
+  # ------------------------------------------------------------------
+  sign-release:
+    name: Sign Release Artifact
+    needs:
+      - dast-scan
+      - api-scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.3.0
+
+      - name: Create Release Archive
+        run: tar -czvf release.tar.gz backend frontend docker-compose.yml
+
+      - name: Sign Artifact (Keyless)
+        run: |
+          cosign sign-blob --yes release.tar.gz --output-certificate release.crt --output-signature release.sig
+
+      - name: Upload Signed Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-release-package
+          path: |
+            release.tar.gz
+            release.crt
+            release.sig
+
+
+
+
+  build_push_deploy:
+    name: Build, Push and Deploy backend
+    runs-on: ubuntu-latest
+    needs:
+      - sign-release
+    environment:
+      name: staging
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Log in to Azure Container Registry
+        run: |
+          az acr login --name ${{ secrets.ACR_NAME }}
+
+      - name: Build and tag Docker image
+        id: build
+        run: |
+          ACR_REGISTRY="${{ secrets.ACR_NAME }}.azurecr.io"
+          IMAGE_FULL="${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          
+          echo "Building: $IMAGE_FULL"
+          
+          docker build ./backend \
+            --file backend/Dockerfile \
+            --tag $IMAGE_FULL \
+            --tag ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:latest
+          
+          echo "IMAGE_FULL=${IMAGE_FULL}" >> $GITHUB_ENV
+
+      - name: Push Docker image to ACR
+        run: |
+          ACR_REGISTRY="${{ secrets.ACR_NAME }}.azurecr.io"
+          
+          echo "Pushing images to ACR:"
+          docker push ${{ env.IMAGE_FULL }}
+          docker push ${ACR_REGISTRY}/${{ env.IMAGE_NAME }}:latest
+          
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.RG_CREDENTIALS }}
+          
+      - name: Update Azure Container App
+        run: |
+          echo "Updating Container App with image: ${{ env.IMAGE_FULL }}"
+          
+          az containerapp update \
+            --name super-sec-calc-api-app \
+            --resource-group super-sec-calc-rg \
+            --image "${{ env.IMAGE_FULL }}"
+
+      - name: Verify deployment
+        run: |
+          echo "Verifying deployment..."
+          az containerapp show \
+            --name super-sec-calc-api-app \
+            --resource-group super-sec-calc-rg \
+            --query "{name:name, latestImage:properties.template.containers[0].image, url:properties.configuration.ingress.fqdn}" -o table
+
+
+  build_and_deploy_frontend:
+    runs-on: ubuntu-latest
+    name: Build and deploy frontend
+    needs:
+      - sign-release
+    concurrency:
+      group: frontend-ci-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: "${{ env.APP_SOURCE_PATH }}/package-lock.json"
+
+      - name: Install dependencies
+        working-directory: ${{ env.APP_SOURCE_PATH }}
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: ${{ env.APP_SOURCE_PATH }}
+        run: npm run build
+
+      - name: Deploy to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: "upload"
+
+          # This is the fix: Point directly to the folder with your finished website
+          app_location: "${{ env.APP_BUILD_OUTPUT_PATH }}"
+
+          # No longer needed as we specify the full path in app_location
+          output_location: ""
+
+          # This is correct because we already built the app in the previous step
+          skip_app_build: true
+
+
+
+

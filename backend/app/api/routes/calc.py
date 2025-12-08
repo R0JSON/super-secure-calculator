@@ -1,11 +1,16 @@
 import uuid
-from typing import Any 
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from sqlmodel import func, select
 
 from app.api.deps import CurrentUser, SessionDep
-from app.models import Calculation, CalculationCreate, CalculationsPublic, CalculationPublic ,CalculationUpdate,  Message, OperationType
+from app.models import (
+    Calculation,
+    CalculationCreate,
+    CalculationPublic,
+    CalculationsPublic,
+)
 
 router = APIRouter(prefix="/calculations", tags=["calculations"])
 
@@ -42,7 +47,9 @@ def read_calculations(
 
 
 @router.get("/{id}", response_model=CalculationPublic)
-def read_calculation(session: SessionDep, current_user: CurrentUser, id: uuid.UUID) -> Any:
+def read_calculation(
+    session: SessionDep, current_user: CurrentUser, id: uuid.UUID
+) -> Any:
     """
     Get calculation by ID.
     """
@@ -71,8 +78,10 @@ def create_calculation(
         case "div":
             if not calculation_in.operand_b:
                 raise HTTPException(status_code=400, detail="Can't divide by zero!")
-            result = calculation_in.operand_a / calculation_in.operand_b
-    calculation = Calculation.model_validate(calculation_in, update={"owner_id": current_user.id, "result": result})
+            result = int(calculation_in.operand_a / calculation_in.operand_b)
+    calculation = Calculation.model_validate(
+        calculation_in, update={"owner_id": current_user.id, "result": result}
+    )
     session.add(calculation)
     session.commit()
     session.refresh(calculation)
