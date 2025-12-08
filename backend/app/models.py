@@ -1,143 +1,250 @@
-from __future__ import annotations
-
 import enum
 import html
-import uuid
+from typing import Literal
 from datetime import datetime
-from typing import Optional, List
-
 from pydantic import EmailStr, field_validator
-from sqlmodel import SQLModel, Field, Relationship
+import uuid
+
+from sqlmodel import Field, Relationship, SQLModel
 
 
-# ========================
-# Enums
-# ========================
-
-
-class Role(str, enum.Enum):
-    ADMIN = "admin"
-    USER = "user"
-
-
-# ========================
-# User
-# ========================
-
-
+# Shared properties
 class UserBase(SQLModel):
-    username: str
-    email: EmailStr
-    role: Role = Role.USER
+    email: EmailStr = Field(unique=True, index=True, max_length=255)
+    is_active: bool = True
+    is_superuser: bool = False
+    full_name: str | None = Field(default=None, max_length=255)
 
 
+# Properties to receive via API on creation
+class UserCreate(UserBase):
+    password: str = Field(min_length=8, max_length=40)
+
+
+class UserRegister(SQLModel):
+    email: EmailStr = Field(max_length=255)
+    password: str = Field(min_length=8, max_length=40)
+    full_name: str | None = Field(default=None, max_length=255)
+
+
+# Properties to receive via API on update, all are optional
+class UserUpdate(UserBase):
+    email: EmailStr | None = Field(default=None, max_length=255)
+    password: str | None = Field(default=None, min_length=8, max_length=40)
+
+
+class UserUpdateMe(SQLModel):
+    full_name: str | None = Field(default=None, max_length=255)
+    email: EmailStr | None = Field(default=None, max_length=255)
+
+
+class UpdatePassword(SQLModel):
+    current_password: str = Field(min_length=8, max_length=40)
+    new_password: str = Field(min_length=8, max_length=40)
+
+
+# Database model
 class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    hashed_password: str
+    calculations: list["Calculation"] = Relationship(
+        back_populates="owner", cascade_delete=True
+    )
+    posts: list["Post"] = Relationship(back_populates="owner", cascade_delete=True)
+    comments: list["Comment"] = Relationship(
+        back_populates="owner", cascade_delete=True
+    )
 
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
-    # reverse relationships
-    calculations: List["Calculation"] = Relationship(back_populates="user")
-    posts: List["Post"] = Relationship(back_populates="user")
-    comments: List["Comment"] = Relationship(back_populates="user")
-
-
-class UserPublic(SQLModel):
+# Properties to return via API
+class UserPublic(UserBase):
     id: uuid.UUID
-    username: str
-    role: Role
 
 
 class UserPublicLimited(SQLModel):
     id: uuid.UUID
-    username: str
+    full_name: str | None = None
 
 
-# ========================
-# Calculation
-# ========================
+class UsersPublic(SQLModel):
+    data: list[UserPublic]
+    count: int
+
+
+class OperationType(str, enum.Enum):
+    add = "add"
+    sub = "sub"
+    mul = "mul"
+    div = "div"
 
 
 class CalculationBase(SQLModel):
-    expression: str
-    result: str
+    result: int | None = Field(default=None)
+    operand_a: int | None = Field(default=None)
+    operand_b: int | None = Field(default=None)
+    operation: OperationType | None = Field(default=None)
+
+
+class CalculationCreate(SQLModel):
+    operand_a: int
+    operand_b: int
+    operation: OperationType
+
+
+class CalculationUpdate(SQLModel):
+    operand_a: int | None = None
+    operand_b: int | None = None
+    operation: OperationType | None = None
 
 
 class Calculation(CalculationBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    owner_id: uuid.UUID = Field(
+        foreign_key="user.id", nullable=False, ondelete="CASCADE"
+    )
+    owner: "User" = Relationship(back_populates="calculations")
+    posts: list["Post"] = Relationship(
+        back_populates="calculation", cascade_delete=True
+    )
 
-    user_id: uuid.UUID = Field(foreign_key="user.id")
-    user: Optional[User] = Relationship(back_populates="calculations")
 
-
-class CalculationPublic(SQLModel):
+class CalculationPublic(CalculationBase):
     id: uuid.UUID
-    expression: str
-    result: str
-    created_at: datetime
-    user: UserPublicLimited
+    owner_id: uuid.UUID
 
 
-# ========================
-# Posts
-# ========================
+class CalculationWithPosts(CalculationPublic):
+    posts: list["PostPublic"] = []
+
+
+class CalculationsPublic(SQLModel):
+    data: list[CalculationPublic]
+    count: int
+
+
+class Message(SQLModel):
+    message: str
+
+
+class Token(SQLModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class TokenPayload(SQLModel):
+    sub: str | None = None
+
+
+class NewPassword(SQLModel):
+    token: str
+    new_password: str = Field(min_length=8, max_length=40)
 
 
 class PostBase(SQLModel):
-    title: str
-    content: str
+    title: str = Field(max_length=255)
+    description: str | None = Field(default=None, max_length=500)
+    created_at: datetime | None = Field(default_factory=datetime.utcnow)
 
-    @field_validator("content")
-    def sanitize_content(cls, v: str) -> str:
-        return html.escape(v)
+
+class PostCreate(PostBase):
+    calculation_id: uuid.UUID
+
+
+class PostUpdate(SQLModel):
+    title: str | None = Field(default=None, max_length=255)
+    description: str | None = Field(default=None, max_length=500)
 
 
 class Post(PostBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    owner_id: uuid.UUID = Field(
+        foreign_key="user.id", nullable=False, ondelete="CASCADE"
+    )
+    calculation_id: uuid.UUID = Field(
+        foreign_key="calculation.id", nullable=False, ondelete="CASCADE"
+    )
 
-    user_id: uuid.UUID = Field(foreign_key="user.id")
-    user: Optional[User] = Relationship(back_populates="posts")
+    owner: "User" = Relationship(back_populates="posts")
+    calculation: "Calculation" = Relationship(back_populates="posts")
+    comments: list["Comment"] = Relationship(back_populates="post", cascade_delete=True)
 
-    comments: List["Comment"] = Relationship(back_populates="post")
 
-
-class PostPublic(SQLModel):
+class PostPublic(PostBase):
     id: uuid.UUID
-    title: str
-    content: str
-    created_at: datetime
-    user: UserPublicLimited
+    owner_id: uuid.UUID
+    calculation_id: uuid.UUID
 
 
-# ========================
-# Comments
-# ========================
+class PostWithCalculation(PostPublic):
+    calculation: "CalculationPublic" = None
+
+
+class PostWithDetails(PostWithCalculation):
+    comments: list["CommentPublic"] = []
+    owner: "UserPublic" = None
+
+
+class PostsPublic(SQLModel):
+    data: list[PostPublic]
+    count: int
+
+
+class PostPublicWithOwner(PostPublic):
+    owner: "UserPublicLimited" = None
+
+
+class PostsPublicWithOwners(SQLModel):
+    data: list[PostPublicWithOwner]
+    count: int
 
 
 class CommentBase(SQLModel):
-    content: str
+    content: str = Field(max_length=1000)
+    created_at: datetime | None = Field(default_factory=datetime.utcnow)
+
+
+class CommentCreate(CommentBase):
+    post_id: uuid.UUID
 
     @field_validator("content")
-    def sanitize_content(cls, v: str) -> str:
-        return html.escape(v)
+    @classmethod
+    def validate_content_not_empty(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Comment content cannot be empty")
+        if len(v) > 1000:
+            raise ValueError("Comment content cannot exceed 1000 characters")
+        return v
 
 
 class Comment(CommentBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    post_id: uuid.UUID = Field(
+        foreign_key="post.id", nullable=False, ondelete="CASCADE"
+    )
+    owner_id: uuid.UUID = Field(
+        foreign_key="user.id", nullable=False, ondelete="CASCADE"
+    )
 
-    user_id: uuid.UUID = Field(foreign_key="user.id")
-    post_id: uuid.UUID = Field(foreign_key="post.id")
-
-    user: Optional[User] = Relationship(back_populates="comments")
-    post: Optional[Post] = Relationship(back_populates="comments")
+    post: "Post" = Relationship(back_populates="comments")
+    owner: "User" = Relationship(back_populates="comments")
 
 
-class CommentPublic(SQLModel):
+class CommentPublic(CommentBase):
     id: uuid.UUID
-    content: str
-    created_at: datetime
-    user: UserPublicLimited
+    post_id: uuid.UUID
+    owner_id: uuid.UUID
+
+
+class CommentWithOwner(CommentPublic):
+    owner: "UserPublicLimited" = None
+
+
+class CommentsPublic(SQLModel):
+    data: list[CommentPublic]
+    count: int
+
+
+class CommentsPublicWithOwners(SQLModel):
+    data: list[CommentWithOwner]
+    count: int
