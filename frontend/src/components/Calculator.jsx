@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../api/axiosConfig';
-import './Calculator.css'; // We will create this file for styling
+import './Calculator.css';
 
 const operationSymbols = {
   add: '+',
@@ -17,6 +17,11 @@ function Calculator() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [postingId, setPostingId] = useState(null); // Track which calculation is being posted
+  const [showPostModal, setShowPostModal] = useState(false);
+  const [currentCalculation, setCurrentCalculation] = useState(null);
+  const [postTitle, setPostTitle] = useState('');
+  const [postDescription, setPostDescription] = useState('');
 
   // Fetch initial calculation history when the component mounts
   useEffect(() => {
@@ -35,12 +40,11 @@ function Calculator() {
   };
 
   const handleCalculate = async (e) => {
-    e.preventDefault(); // Prevent form submission from reloading the page
+    e.preventDefault();
     setIsLoading(true);
     setError('');
     setResult(null);
 
-    // Basic validation
     if (operation === 'div' && parseFloat(operandB) === 0) {
       setError('Error: Division by zero is not allowed.');
       setIsLoading(false);
@@ -57,7 +61,6 @@ function Calculator() {
       const response = await apiClient.post('/calculations/', payload);
 
       setResult(response.data.result);
-      // After a successful calculation, refresh the history list
       fetchHistory();
     } catch (err) {
       setError('Calculation failed. Please ensure both operands are valid numbers.');
@@ -65,6 +68,62 @@ function Calculator() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handlePostCalculation = (calculation) => {
+    setCurrentCalculation(calculation);
+    // Generate a default title based on the calculation
+    setPostTitle(`${calculation.operand_a} ${operationSymbols[calculation.operation]} ${calculation.operand_b} = ${calculation.result}`);
+    setPostDescription('');
+    setShowPostModal(true);
+  };
+
+  const handleCreatePost = async () => {
+    if (!postTitle.trim()) {
+      setError('Please enter a title for your post.');
+      return;
+    }
+
+    setPostingId(currentCalculation.id);
+    setError('');
+
+    try {
+      const postData = {
+        title: postTitle,
+        description: postDescription,
+        calculation_id: currentCalculation.id,
+      };
+
+      await apiClient.post('/posts/', postData);
+
+      // Reset and close modal
+      setShowPostModal(false);
+      setCurrentCalculation(null);
+      setPostTitle('');
+      setPostDescription('');
+
+      // Show success message
+      setError(''); // Clear any previous errors
+      alert('Post created successfully!');
+
+    } catch (err) {
+      setError('Failed to create post. Please try again.');
+      console.error(err);
+    } finally {
+      setPostingId(null);
+    }
+  };
+
+  const closeModal = () => {
+    setShowPostModal(false);
+    setCurrentCalculation(null);
+    setPostTitle('');
+    setPostDescription('');
+    setError('');
+  };
+
+  const getCalculationFormula = (calc) => {
+    return `${calc.operand_a} ${operationSymbols[calc.operation]} ${calc.operand_b} = ${calc.result}`;
   };
 
   return (
@@ -102,7 +161,7 @@ function Calculator() {
         </button>
       </form>
 
-      {error && <p className="error-message">{error}</p>}
+      {error && !showPostModal && <p className="error-message">{error}</p>}
       {result !== null && (
         <div className="result-display">
           <h3>Result: <span>{result}</span></h3>
@@ -115,7 +174,18 @@ function Calculator() {
           <ul>
             {history.map((calc) => (
               <li key={calc.id}>
-                {calc.operand_a} {operationSymbols[calc.operation]} {calc.operand_b} = <strong>{calc.result}</strong>
+                <div className="calculation-info">
+                  <span className="calculation-formula">
+                    {getCalculationFormula(calc)}
+                  </span>
+                </div>
+                <button
+                  className="post-button"
+                  onClick={() => handlePostCalculation(calc)}
+                  disabled={postingId === calc.id}
+                >
+                  {postingId === calc.id ? 'Posting...' : 'Post'}
+                </button>
               </li>
             ))}
           </ul>
@@ -123,6 +193,61 @@ function Calculator() {
           <p>No calculations have been performed yet.</p>
         )}
       </div>
+
+      {/* Post Creation Modal */}
+      {showPostModal && currentCalculation && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>Create Post from Calculation</h3>
+              <button className="close-button" onClick={closeModal}>×</button>
+            </div>
+
+            <div className="calculation-preview">
+              <strong>Calculation:</strong> {getCalculationFormula(currentCalculation)}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="post-title">Post Title *</label>
+              <input
+                id="post-title"
+                type="text"
+                value={postTitle}
+                onChange={(e) => setPostTitle(e.target.value)}
+                placeholder="Enter a title for your post"
+                maxLength="255"
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="post-description">Description (Optional)</label>
+              <textarea
+                id="post-description"
+                value={postDescription}
+                onChange={(e) => setPostDescription(e.target.value)}
+                placeholder="Add a description or context for this calculation..."
+                rows="3"
+                maxLength="500"
+              />
+            </div>
+
+            {error && <p className="error-message">{error}</p>}
+
+            <div className="modal-actions">
+              <button className="cancel-button" onClick={closeModal}>
+                Cancel
+              </button>
+              <button
+                className="create-post-button"
+                onClick={handleCreatePost}
+                disabled={!postTitle.trim() || postingId}
+              >
+                {postingId ? 'Creating Post...' : 'Create Post'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

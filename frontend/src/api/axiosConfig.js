@@ -4,8 +4,8 @@ import axios from 'axios';
 
 // Vite exposes env variables on `import.meta.env`
 // VITE_API_URL will be set in our Docker Compose file
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1';
-
+//const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1';
+const API_URL = import.meta.env.VITE_API_URL || 'https://calcapi.szpadel.win/api/v1';
 const api = axios.create({
   baseURL: API_URL,
 });
