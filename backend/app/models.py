@@ -1,11 +1,13 @@
 import enum
-import html
-from typing import Literal
-from datetime import datetime
-from pydantic import EmailStr, field_validator
 import uuid
+from datetime import datetime
+from typing import TYPE_CHECKING
 
+from pydantic import EmailStr, field_validator
 from sqlmodel import Field, Relationship, SQLModel
+
+if TYPE_CHECKING:
+    from app.models import Calculation, Post, Comment
 
 
 # Shared properties
@@ -16,7 +18,6 @@ class UserBase(SQLModel):
     full_name: str | None = Field(default=None, max_length=255)
 
 
-# Properties to receive via API on creation
 class UserCreate(UserBase):
     password: str = Field(min_length=8, max_length=40)
 
@@ -27,10 +28,11 @@ class UserRegister(SQLModel):
     full_name: str | None = Field(default=None, max_length=255)
 
 
-# Properties to receive via API on update, all are optional
+# Properties to receive via API on update
 class UserUpdate(UserBase):
-    email: EmailStr | None = Field(default=None, max_length=255)
-    password: str | None = Field(default=None, min_length=8, max_length=40)
+    # Nadpisane bez Field(), bo musi mieć dokładnie tę samą sygnaturę
+    email: EmailStr | None = None
+    password: str | None = None
 
 
 class UserUpdateMe(SQLModel):
@@ -43,10 +45,10 @@ class UpdatePassword(SQLModel):
     new_password: str = Field(min_length=8, max_length=40)
 
 
-# Database model
 class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hashed_password: str
+
     calculations: list["Calculation"] = Relationship(
         back_populates="owner", cascade_delete=True
     )
@@ -56,7 +58,6 @@ class User(UserBase, table=True):
     )
 
 
-# Properties to return via API
 class UserPublic(UserBase):
     id: uuid.UUID
 
@@ -103,6 +104,7 @@ class Calculation(CalculationBase, table=True):
         foreign_key="user.id", nullable=False, ondelete="CASCADE"
     )
     owner: "User" = Relationship(back_populates="calculations")
+
     posts: list["Post"] = Relationship(
         back_populates="calculation", cascade_delete=True
     )
@@ -114,7 +116,7 @@ class CalculationPublic(CalculationBase):
 
 
 class CalculationWithPosts(CalculationPublic):
-    posts: list["PostPublic"] = []
+    posts: list["PostPublic"] = Field(default_factory=list)
 
 
 class CalculationsPublic(SQLModel):
@@ -157,6 +159,7 @@ class PostUpdate(SQLModel):
 
 class Post(PostBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+
     owner_id: uuid.UUID = Field(
         foreign_key="user.id", nullable=False, ondelete="CASCADE"
     )
@@ -176,12 +179,12 @@ class PostPublic(PostBase):
 
 
 class PostWithCalculation(PostPublic):
-    calculation: "CalculationPublic" = None
+    calculation: "CalculationPublic" | None = None
 
 
 class PostWithDetails(PostWithCalculation):
-    comments: list["CommentPublic"] = []
-    owner: "UserPublic" = None
+    comments: list["CommentPublic"] = Field(default_factory=list)
+    owner: "UserPublic" | None = None
 
 
 class PostsPublic(SQLModel):
@@ -190,7 +193,7 @@ class PostsPublic(SQLModel):
 
 
 class PostPublicWithOwner(PostPublic):
-    owner: "UserPublicLimited" = None
+    owner: "UserPublicLimited" | None = None
 
 
 class PostsPublicWithOwners(SQLModel):
@@ -198,6 +201,7 @@ class PostsPublicWithOwners(SQLModel):
     count: int
 
 
+# Comments
 class CommentBase(SQLModel):
     content: str = Field(max_length=1000)
     created_at: datetime | None = Field(default_factory=datetime.utcnow)
@@ -208,7 +212,7 @@ class CommentCreate(CommentBase):
 
     @field_validator("content")
     @classmethod
-    def validate_content_not_empty(cls, v: str) -> str:
+    def validate_content(cls, v: str) -> str:
         v = v.strip()
         if not v:
             raise ValueError("Comment content cannot be empty")
@@ -219,6 +223,7 @@ class CommentCreate(CommentBase):
 
 class Comment(CommentBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+
     post_id: uuid.UUID = Field(
         foreign_key="post.id", nullable=False, ondelete="CASCADE"
     )
@@ -237,7 +242,7 @@ class CommentPublic(CommentBase):
 
 
 class CommentWithOwner(CommentPublic):
-    owner: "UserPublicLimited" = None
+    owner: "UserPublicLimited" | None = None
 
 
 class CommentsPublic(SQLModel):
