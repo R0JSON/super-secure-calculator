@@ -89,6 +89,10 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
+        # Remove Server header to prevent information disclosure
+        if "Server" in response.headers:
+            del response.headers["Server"]
+
         # Site Isolation
         response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
         response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
