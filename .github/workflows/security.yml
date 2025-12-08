@@ -101,7 +101,7 @@ jobs:
         run: |
           cat <<EOF > .env
           DOMAIN=localhost
-          ENVIRONMENT=local
+          ENVIRONMENT=production
           PROJECT_NAME=SuperSecureCalc
           POSTGRES_SERVER=db
           POSTGRES_PORT=5432
@@ -182,7 +182,7 @@ jobs:
         run: |
           cat <<EOF > .env
           DOMAIN=localhost
-          ENVIRONMENT=local
+          ENVIRONMENT=production
           PROJECT_NAME=SuperSecureCalc
           POSTGRES_SERVER=db
           POSTGRES_PORT=5432
