@@ -1,13 +1,11 @@
 import enum
-from typing import TYPE_CHECKING
+import html
+from typing import Literal, TYPE_CHECKING
 from datetime import datetime
 from pydantic import EmailStr, field_validator
 import uuid
 
 from sqlmodel import Field, Relationship, SQLModel
-
-if TYPE_CHECKING:
-    from app.models import Calculation, Post, Comment
 
 
 # Shared properties
@@ -18,6 +16,7 @@ class UserBase(SQLModel):
     full_name: str | None = Field(default=None, max_length=255)
 
 
+# Properties to receive via API on creation
 class UserCreate(UserBase):
     password: str = Field(min_length=8, max_length=40)
 
@@ -28,10 +27,14 @@ class UserRegister(SQLModel):
     full_name: str | None = Field(default=None, max_length=255)
 
 
-class UserUpdate(UserBase):
-    # musi być bez Field(), inaczej niezgodny z bazowym typem
-    email: EmailStr | None = None
-    password: str | None = None
+# Properties to receive via API on update, all are optional
+# Fixed: Inherit from SQLModel directly to avoid type conflict with UserBase.email being required
+class UserUpdate(SQLModel):
+    email: EmailStr | None = Field(default=None, max_length=255)
+    password: str | None = Field(default=None, min_length=8, max_length=40)
+    full_name: str | None = Field(default=None, max_length=255)
+    is_active: bool | None = None
+    is_superuser: bool | None = None
 
 
 class UserUpdateMe(SQLModel):
@@ -44,6 +47,7 @@ class UpdatePassword(SQLModel):
     new_password: str = Field(min_length=8, max_length=40)
 
 
+# Database model, database table inferred from class name
 class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hashed_password: str
@@ -56,13 +60,16 @@ class User(UserBase, table=True):
     )
 
 
+# Properties to return via API, id is always required
 class UserPublic(UserBase):
     id: uuid.UUID
 
 
+# Add this new model for limited public user information
 class UserPublicLimited(SQLModel):
     id: uuid.UUID
     full_name: str | None = None
+    # Don't include email, is_active, is_superuser
 
 
 class UsersPublic(SQLModel):
@@ -77,6 +84,7 @@ class OperationType(str, enum.Enum):
     div = "div"
 
 
+# Shared properties
 class CalculationBase(SQLModel):
     result: int | None = Field(default=None)
     operand_a: int | None = Field(default=None)
@@ -84,18 +92,21 @@ class CalculationBase(SQLModel):
     operation: OperationType | None = Field(default=None)
 
 
+# Properties to receive on item creation
 class CalculationCreate(SQLModel):
     operand_a: int
     operand_b: int
     operation: OperationType
 
 
+# Properties to receive on item update
 class CalculationUpdate(SQLModel):
     operand_a: int | None = None
     operand_b: int | None = None
     operation: OperationType | None = None
 
 
+# Database model, database table inferred from class name
 class Calculation(CalculationBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     owner_id: uuid.UUID = Field(
@@ -107,13 +118,14 @@ class Calculation(CalculationBase, table=True):
     )
 
 
+# Properties to return via API, id is always required
 class CalculationPublic(CalculationBase):
     id: uuid.UUID
     owner_id: uuid.UUID
 
 
 class CalculationWithPosts(CalculationPublic):
-    posts: list["PostPublic"] = Field(default_factory=list)
+    posts: list["PostPublic"] = []
 
 
 class CalculationsPublic(SQLModel):
@@ -121,15 +133,18 @@ class CalculationsPublic(SQLModel):
     count: int
 
 
+# Generic message
 class Message(SQLModel):
     message: str
 
 
+# JSON payload containing access token
 class Token(SQLModel):
     access_token: str
     token_type: str = "bearer"
 
 
+# Contents of JWT token
 class TokenPayload(SQLModel):
     sub: str | None = None
 
@@ -141,12 +156,14 @@ class NewPassword(SQLModel):
 
 class PostBase(SQLModel):
     title: str = Field(max_length=255)
-    description: str | None = Field(default=None, max_length=500)
+    description: str | None = Field(
+        default=None, max_length=500
+    )  # Optional description about the calculation
     created_at: datetime | None = Field(default_factory=datetime.utcnow)
 
 
 class PostCreate(PostBase):
-    calculation_id: uuid.UUID
+    calculation_id: uuid.UUID  # Post must be associated with a calculation
 
 
 class PostUpdate(SQLModel):
@@ -175,12 +192,12 @@ class PostPublic(PostBase):
 
 
 class PostWithCalculation(PostPublic):
-    calculation: "CalculationPublic" | None = None
+    calculation: "CalculationPublic" = None
 
 
 class PostWithDetails(PostWithCalculation):
-    comments: list["CommentPublic"] = Field(default_factory=list)
-    owner: "UserPublic" | None = None
+    comments: list["CommentPublic"] = []
+    owner: "UserPublic" = None
 
 
 class PostsPublic(SQLModel):
@@ -188,13 +205,17 @@ class PostsPublic(SQLModel):
     count: int
 
 
+# Add these new models for public posts with limited owner information
 class PostPublicWithOwner(PostPublic):
-    owner: "UserPublicLimited" | None = None
+    owner: "UserPublicLimited" = None
 
 
 class PostsPublicWithOwners(SQLModel):
     data: list[PostPublicWithOwner]
     count: int
+
+
+# --- Comment Models ---
 
 
 class CommentBase(SQLModel):
@@ -236,7 +257,7 @@ class CommentPublic(CommentBase):
 
 
 class CommentWithOwner(CommentPublic):
-    owner: "UserPublicLimited" | None = None
+    owner: "UserPublicLimited" = None
 
 
 class CommentsPublic(SQLModel):
