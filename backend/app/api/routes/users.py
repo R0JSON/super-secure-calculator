@@ -2,6 +2,7 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import col, delete, func, select
 
 from app import crud
@@ -60,7 +61,13 @@ def create_user(*, session: SessionDep, user_in: UserCreate) -> Any:
             detail="The user with this email already exists in the system.",
         )
 
-    user = crud.create_user(session=session, user_create=user_in)
+    try:
+        user = crud.create_user(session=session, user_create=user_in)
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status_code=400, detail="Integrity error during user creation."
+        )
     return user
 
 
@@ -81,8 +88,14 @@ def update_user_me(
     user_data = user_in.model_dump(exclude_unset=True)
     current_user.sqlmodel_update(user_data)
     session.add(current_user)
-    session.commit()
-    session.refresh(current_user)
+    try:
+        session.commit()
+        session.refresh(current_user)
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status_code=400, detail="Integrity error during user update."
+        )
     return current_user
 
 
@@ -102,7 +115,13 @@ def update_password_me(
     hashed_password = get_password_hash(body.new_password)
     current_user.hashed_password = hashed_password
     session.add(current_user)
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status_code=400, detail="Integrity error during password update."
+        )
     return Message(message="Password updated successfully")
 
 
@@ -124,7 +143,13 @@ def delete_user_me(session: SessionDep, current_user: CurrentUser) -> Any:
             status_code=403, detail="Super users are not allowed to delete themselves"
         )
     session.delete(current_user)
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status_code=400, detail="Integrity error during user deletion."
+        )
     return Message(message="User deleted successfully")
 
 
@@ -140,7 +165,13 @@ def register_user(session: SessionDep, user_in: UserRegister) -> Any:
             detail="The user with this email already exists in the system",
         )
     user_create = UserCreate.model_validate(user_in)
-    user = crud.create_user(session=session, user_create=user_create)
+    try:
+        user = crud.create_user(session=session, user_create=user_create)
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status_code=400, detail="Integrity error during user registration."
+        )
     return user
 
 
@@ -190,7 +221,13 @@ def update_user(
                 status_code=409, detail="User with this email already exists"
             )
 
-    db_user = crud.update_user(session=session, db_user=db_user, user_in=user_in)
+    try:
+        db_user = crud.update_user(session=session, db_user=db_user, user_in=user_in)
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status_code=400, detail="Integrity error during user update."
+        )
     return db_user
 
 
@@ -211,5 +248,11 @@ def delete_user(
     statement = delete(Calculation).where(col(Calculation.owner_id) == user_id)
     session.exec(statement)  # type: ignore
     session.delete(user)
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status_code=400, detail="Integrity error during user deletion."
+        )
     return Message(message="User deleted successfully")

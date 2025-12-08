@@ -83,12 +83,16 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
         response = await call_next(request)
-        
+
         # Secure Headers
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        
+
+        # Site Isolation
+        response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+
         # Cache-Control to prevent caching sensitive data (ZAP Report)
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
         response.headers["Pragma"] = "no-cache"
@@ -100,7 +104,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
         # Content-Security-Policy configuration
         # Relax CSP for API documentation endpoints to allow Swagger UI to load
-        if request.url.path in ["/docs", "/redoc", f"{settings.API_V1_STR}/openapi.json"]:
+        if request.url.path in [
+            "/docs",
+            "/redoc",
+            f"{settings.API_V1_STR}/openapi.json",
+        ]:
             # Swagger UI requires unsafe-inline and access to CDNs
             response.headers["Content-Security-Policy"] = (
                 "default-src 'self'; "

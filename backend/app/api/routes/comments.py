@@ -4,6 +4,7 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import col, func, select
 
 from app.api.deps import CurrentUser, SessionDep
@@ -121,8 +122,14 @@ def create_comment(
 
     comment = Comment.model_validate(comment_data, update={"owner_id": current_user.id})
     session.add(comment)
-    session.commit()
-    session.refresh(comment)
+    try:
+        session.commit()
+        session.refresh(comment)
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status_code=400, detail="Integrity error during comment creation."
+        )
 
     # Refresh to get the owner relationship loaded
     session.refresh(comment.owner)
@@ -152,5 +159,11 @@ def delete_comment(
         raise HTTPException(status_code=400, detail="Not enough permissions")
 
     session.delete(comment)
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status_code=400, detail="Integrity error during comment deletion."
+        )
     return Message(message="Comment deleted successfully")

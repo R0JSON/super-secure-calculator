@@ -4,6 +4,7 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import func, select
 
 from app.api.deps import CurrentUser, SessionDep
@@ -190,8 +191,14 @@ def create_post(
 
     post = Post.model_validate(post_data, update={"owner_id": current_user.id})
     session.add(post)
-    session.commit()
-    session.refresh(post)
+    try:
+        session.commit()
+        session.refresh(post)
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status_code=400, detail="Integrity error during post creation."
+        )
 
     # Refresh to get the calculation relationship loaded
     session.refresh(post.calculation)
@@ -225,8 +232,14 @@ def update_post(
 
     post.sqlmodel_update(update_data)
     session.add(post)
-    session.commit()
-    session.refresh(post)
+    try:
+        session.commit()
+        session.refresh(post)
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status_code=400, detail="Integrity error during post update."
+        )
     return post
 
 
@@ -241,7 +254,13 @@ def delete_post(session: SessionDep, current_user: CurrentUser, id: uuid.UUID) -
     if not current_user.is_superuser and post.owner_id != current_user.id:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     session.delete(post)
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status_code=400, detail="Integrity error during post deletion."
+        )
     return Message(message="Post deleted successfully")
 
 
