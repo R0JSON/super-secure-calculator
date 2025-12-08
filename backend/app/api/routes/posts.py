@@ -25,6 +25,7 @@ from app.models import (
 
 router = APIRouter(prefix="/posts", tags=["posts"])
 
+
 def sanitize_description_content(content: str) -> str:
     """
     Sanitize description content to prevent XSS and other attacks.
@@ -42,25 +43,26 @@ def sanitize_description_content(content: str) -> str:
 
     # Remove potentially dangerous patterns
     dangerous_patterns = [
-        r'<script.*?>.*?</script>',
-        r'on\w+\s*=',
-        r'javascript:',
-        r'vbscript:',
-        r'expression\s*\(',
-        r'url\s*\(',
+        r"<script.*?>.*?</script>",
+        r"on\w+\s*=",
+        r"javascript:",
+        r"vbscript:",
+        r"expression\s*\(",
+        r"url\s*\(",
     ]
 
     for pattern in dangerous_patterns:
-        content = re.sub(pattern, '', content, flags=re.IGNORECASE)
+        content = re.sub(pattern, "", content, flags=re.IGNORECASE)
 
     # Limit consecutive spaces
-    content = re.sub(r' {2,}', ' ', content)
+    content = re.sub(r" {2,}", " ", content)
 
     # Limit consecutive newlines (keep max 2)
-    content = re.sub(r'\n{3,}', '\n\n', content)
+    content = re.sub(r"\n{3,}", "\n\n", content)
 
     print(f"✅ Sanitized description to: '{content}'")  # Debug
     return content
+
 
 @router.get("/public/", response_model=PostsPublicWithOwners)
 def read_public_posts(session: SessionDep, skip: int = 0, limit: int = 100) -> Any:
@@ -71,11 +73,7 @@ def read_public_posts(session: SessionDep, skip: int = 0, limit: int = 100) -> A
     count = session.exec(count_statement).one()
 
     statement = (
-        select(Post)
-        .join(User, Post.owner_id == User.id)
-        .where(User.is_active == True)
-        .offset(skip)
-        .limit(limit)
+        select(Post).join(User).where(User.is_active == True).offset(skip).limit(limit)
     )
     posts = session.exec(statement).all()
 
@@ -90,9 +88,9 @@ def read_public_posts(session: SessionDep, skip: int = 0, limit: int = 100) -> A
             calculation_id=post.calculation_id,
             owner=UserPublicLimited(
                 id=post.owner.id,
-                full_name=post.owner.full_name
+                full_name=post.owner.full_name,
                 # Don't include email, is_active, is_superuser
-            )
+            ),
         )
         posts_with_owners.append(post_with_owner)
 
@@ -105,12 +103,7 @@ def read_post(session: SessionDep, current_user: CurrentUser, id: uuid.UUID) -> 
     Get post by ID with calculation and comments details.
     """
     # Get post with calculation and owner
-    statement = (
-        select(Post)
-        .where(Post.id == id)
-        .join(Calculation, Post.calculation_id == Calculation.id)
-        .join(User, Post.owner_id == User.id)
-    )
+    statement = select(Post).where(Post.id == id).join(Calculation).join(User)
     post = session.exec(statement).first()
 
     if not post:
@@ -119,11 +112,7 @@ def read_post(session: SessionDep, current_user: CurrentUser, id: uuid.UUID) -> 
         raise HTTPException(status_code=400, detail="Not enough permissions")
 
     # Get comments for this post
-    comments_statement = (
-        select(Comment)
-        .where(Comment.post_id == id)
-        .join(User, Comment.owner_id == User.id)
-    )
+    comments_statement = select(Comment).where(Comment.post_id == id).join(User)
     comments = session.exec(comments_statement).all()
 
     # Convert to response model with nested data
@@ -136,7 +125,7 @@ def read_post(session: SessionDep, current_user: CurrentUser, id: uuid.UUID) -> 
         calculation_id=post.calculation_id,
         calculation=post.calculation,
         comments=comments,
-        owner=post.owner
+        owner=post.owner,
     )
 
     return post_details
@@ -150,8 +139,8 @@ def read_public_post(session: SessionDep, id: uuid.UUID) -> Any:
     statement = (
         select(Post)
         .where(Post.id == id)
-        .join(Calculation, Post.calculation_id == Calculation.id)
-        .join(User, Post.owner_id == User.id)
+        .join(Calculation)
+        .join(User)
         .where(User.is_active == True)
     )
     post = session.exec(statement).first()
@@ -166,7 +155,7 @@ def read_public_post(session: SessionDep, id: uuid.UUID) -> Any:
         created_at=post.created_at,
         owner_id=post.owner_id,
         calculation_id=post.calculation_id,
-        calculation=post.calculation
+        calculation=post.calculation,
     )
 
     return post_with_calc
@@ -174,9 +163,7 @@ def read_public_post(session: SessionDep, id: uuid.UUID) -> Any:
 
 @router.post("/", response_model=PostWithCalculation)
 def create_post(
-        session: SessionDep,
-        current_user: CurrentUser,
-        post_in: PostCreate
+    session: SessionDep, current_user: CurrentUser, post_in: PostCreate
 ) -> Any:
     """
     Create a new post associated with a calculation.
@@ -186,23 +173,26 @@ def create_post(
     if not calculation:
         raise HTTPException(status_code=404, detail="Calculation not found")
     if not current_user.is_superuser and calculation.owner_id != current_user.id:
-        raise HTTPException(status_code=400, detail="Not enough permissions to use this calculation")
+        raise HTTPException(
+            status_code=400, detail="Not enough permissions to use this calculation"
+        )
 
     # Sanitize title and description
     sanitized_title = sanitize_description_content(post_in.title)
-    sanitized_description = sanitize_description_content(post_in.description) if post_in.description else None
+    sanitized_description = (
+        sanitize_description_content(post_in.description)
+        if post_in.description
+        else None
+    )
 
     # Create the post with sanitized data
     post_data = {
         "title": sanitized_title,
         "description": sanitized_description,
-        "calculation_id": post_in.calculation_id
+        "calculation_id": post_in.calculation_id,
     }
 
-    post = Post.model_validate(
-        post_data,
-        update={"owner_id": current_user.id}
-    )
+    post = Post.model_validate(post_data, update={"owner_id": current_user.id})
     session.add(post)
     session.commit()
     session.refresh(post)
@@ -217,11 +207,14 @@ def create_post(
         created_at=post.created_at,
         owner_id=post.owner_id,
         calculation_id=post.calculation_id,
-        calculation=post.calculation
+        calculation=post.calculation,
     )
 
+
 @router.put("/{id}", response_model=PostPublic)
-def update_post(session: SessionDep, current_user: CurrentUser, id: uuid.UUID, post_in: PostUpdate) -> Any:
+def update_post(
+    session: SessionDep, current_user: CurrentUser, id: uuid.UUID, post_in: PostUpdate
+) -> Any:
     """
     Update a post.
     """
@@ -257,8 +250,13 @@ def delete_post(session: SessionDep, current_user: CurrentUser, id: uuid.UUID) -
 
 
 @router.get("/user/{user_id}", response_model=PostsPublic)
-def read_user_posts(session: SessionDep, current_user: CurrentUser, user_id: uuid.UUID, skip: int = 0,
-                    limit: int = 100) -> Any:
+def read_user_posts(
+    session: SessionDep,
+    current_user: CurrentUser,
+    user_id: uuid.UUID,
+    skip: int = 0,
+    limit: int = 100,
+) -> Any:
     """
     Retrieve posts by a specific user.
     """
@@ -267,18 +265,11 @@ def read_user_posts(session: SessionDep, current_user: CurrentUser, user_id: uui
         raise HTTPException(status_code=400, detail="Not enough permissions")
 
     count_statement = (
-        select(func.count())
-        .select_from(Post)
-        .where(Post.owner_id == user_id)
+        select(func.count()).select_from(Post).where(Post.owner_id == user_id)
     )
     count = session.exec(count_statement).one()
 
-    statement = (
-        select(Post)
-        .where(Post.owner_id == user_id)
-        .offset(skip)
-        .limit(limit)
-    )
+    statement = select(Post).where(Post.owner_id == user_id).offset(skip).limit(limit)
     posts = session.exec(statement).all()
 
     return PostsPublic(data=posts, count=count)

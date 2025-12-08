@@ -28,7 +28,6 @@ class UserRegister(SQLModel):
 
 
 # Properties to receive via API on update, all are optional
-# Fixed: Inherit from SQLModel directly to avoid type conflict with UserBase.email being required
 class UserUpdate(SQLModel):
     email: EmailStr | None = Field(default=None, max_length=255)
     password: str | None = Field(default=None, min_length=8, max_length=40)
@@ -192,12 +191,12 @@ class PostPublic(PostBase):
 
 
 class PostWithCalculation(PostPublic):
-    calculation: "CalculationPublic" = None
+    calculation: "CalculationPublic" | None = None
 
 
 class PostWithDetails(PostWithCalculation):
     comments: list["CommentPublic"] = []
-    owner: "UserPublic" = None
+    owner: "UserPublic" | None = None
 
 
 class PostsPublic(SQLModel):
@@ -207,7 +206,7 @@ class PostsPublic(SQLModel):
 
 # Add these new models for public posts with limited owner information
 class PostPublicWithOwner(PostPublic):
-    owner: "UserPublicLimited" = None
+    owner: "UserPublicLimited" | None = None
 
 
 class PostsPublicWithOwners(SQLModel):
@@ -257,7 +256,7 @@ class CommentPublic(CommentBase):
 
 
 class CommentWithOwner(CommentPublic):
-    owner: "UserPublicLimited" = None
+    owner: "UserPublicLimited" | None = None
 
 
 class CommentsPublic(SQLModel):
