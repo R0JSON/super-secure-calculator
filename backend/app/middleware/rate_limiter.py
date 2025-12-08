@@ -1,15 +1,20 @@
 import time
 from collections import defaultdict
-from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+
+from starlette.middleware.base import (  # Corrected import
+    BaseHTTPMiddleware,
+    RequestResponseEndpoint,
+)
 from starlette.requests import Request
-from starlette.responses import Response, JSONResponse
+from starlette.responses import JSONResponse, Response
 from starlette.types import ASGIApp
+
 
 class RateLimitingMiddleware(BaseHTTPMiddleware):
     def __init__(self, app: ASGIApp, limit_per_minute: int = 60):
         super().__init__(app)
         self.limit_per_minute = limit_per_minute
-        self.requests_by_ip = defaultdict(list)
+        self.requests_by_ip: defaultdict[str, list[float]] = defaultdict(list)
         # No explicit cleanup interval needed if we filter on every request
         # For simplicity, cleanup can happen implicitly by filtering in dispatch
 
@@ -28,9 +33,11 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
         if len(self.requests_by_ip[client_ip]) >= self.limit_per_minute:
             # Rate limit exceeded
             return JSONResponse(
-                {"detail": "Too many requests."}, status_code=429, headers={"Retry-After": "60"}
+                {"detail": "Too many requests."},
+                status_code=429,
+                headers={"Retry-After": "60"},
             )
-        
+
         self.requests_by_ip[client_ip].append(current_time)
         response = await call_next(request)
         return response
