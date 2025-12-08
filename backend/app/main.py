@@ -83,20 +83,36 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
         response = await call_next(request)
+        
+        # Secure Headers
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        
+        # Cache-Control to prevent caching sensitive data (ZAP Report)
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
 
         if request.url.scheme == "https":
             response.headers["Strict-Transport-Security"] = (
                 "max-age=31536000; includeSubDomains; preload"
             )
 
-        # Content-Security-Policy is highly application-specific.
-        # This is a strict starting point and may need to be adjusted for frontend assets.
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; frame-ancestors 'none';"
-        )
+        # Content-Security-Policy configuration
+        # Relax CSP for API documentation endpoints to allow Swagger UI to load
+        if request.url.path in ["/docs", "/redoc", f"{settings.API_V1_STR}/openapi.json"]:
+            # Swagger UI requires unsafe-inline and access to CDNs
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; "
+                "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+                "img-src 'self' https://fastapi.tiangolo.com data:;"
+            )
+        else:
+            # Strict CSP for the rest of the application
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; frame-ancestors 'none';"
+            )
 
         return response
 
