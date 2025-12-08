@@ -2,7 +2,7 @@
 
 # 🧮 Super Secure Calculator
 
-Welcome! This isn't just any calculator — it's a **Super Secure** one.
+Welcome!! This isn't just any calculator — it's a **Super Secure** one.
 This project is a **full-stack web application** featuring a modern **FastAPI** backend and a responsive **React** frontend, all neatly containerized with **Docker**.
 
 The app provides a **secure authentication system** and a simple, private way to perform and save calculations.
