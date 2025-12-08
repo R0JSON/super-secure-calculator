@@ -149,7 +149,7 @@ jobs:
           fail_action: false
           allow_issue_writing: true
           # Usunąłem 'artifact_name', zrobimy to ręcznie poniżej
-
+          cmd_options = '-d'
       # Ręczny upload raportu - to zawsze działa
       - name: Upload API Scan Report
         uses: actions/upload-artifact@v4
