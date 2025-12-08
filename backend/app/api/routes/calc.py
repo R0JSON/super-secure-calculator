@@ -2,6 +2,7 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import func, select
 
 from app.api.deps import CurrentUser, SessionDep
@@ -83,8 +84,12 @@ def create_calculation(
         calculation_in, update={"owner_id": current_user.id, "result": result}
     )
     session.add(calculation)
-    session.commit()
-    session.refresh(calculation)
+    try:
+        session.commit()
+        session.refresh(calculation)
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(status_code=400, detail="Integrity error during calculation creation.")
     return calculation
 
 
