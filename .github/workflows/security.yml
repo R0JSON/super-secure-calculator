@@ -2,7 +2,7 @@ name: Security Pipeline (SAST & DAST)
 
 on:
   push:
-    branches: ["master"]
+    branches: ["master", "lab7"]
   pull_request:
     branches: ["master"]
 
