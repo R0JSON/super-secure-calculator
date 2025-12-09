@@ -152,6 +152,7 @@ jobs:
           format: "openapi"
           fail_action: false
           allow_issue_writing: true
+          rules_file_name: 'zap-rules.conf'
           cmd_options: '-d'
           # Usunąłem 'artifact_name', zrobimy to ręcznie poniżej
       # Ręczny upload raportu - to zawsze działa
