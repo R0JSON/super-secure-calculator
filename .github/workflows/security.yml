@@ -126,13 +126,13 @@ jobs:
 
       - name: Start Environment
         run: |
-          unset ENVIRONMENT
-          unset DOMAIN
-          unset SECRET_KEY
-          unset FIRST_SUPERUSER
-          unset FIRST_SUPERUSER_PASSWORD
-          unset POSTGRES_PASSWORD
-
+#          unset ENVIRONMENT
+#          unset DOMAIN
+#          unset SECRET_KEY
+#          unset FIRST_SUPERUSER
+#          unset FIRST_SUPERUSER_PASSWORD
+#          unset POSTGRES_PASSWORD
+          export $(grep -v '^#' .env | xargs)
           docker compose up -d --build
           echo "⏳ Waiting for backend to be ready..."
           sleep 45
