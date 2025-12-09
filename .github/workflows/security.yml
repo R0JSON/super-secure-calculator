@@ -79,6 +79,12 @@ jobs:
         if: always()
         with:
           sarif_file: "trivy-results.sarif"
+      - name: Upload Trivy result as artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-report
+          path: trivy-results.sarif
 
   # ------------------------------------------------------------------
   # 2a. API SCAN: Skanowanie Backend (Parallel)
