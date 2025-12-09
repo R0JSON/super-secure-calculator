@@ -1,4 +1,4 @@
-name: Security Pipeline (SAST & DAST)
+name: Security Pipeline (SAST & DAST) 2
 
 on:
   push:
