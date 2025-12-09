@@ -61,7 +61,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
+      - name: List project files
+        run: ls -R .
       - name: Run Trivy Vulnerability Scanner
         continue-on-error: true
         uses: aquasecurity/trivy-action@master
