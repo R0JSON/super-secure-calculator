@@ -9,7 +9,7 @@ on:
 permissions: read-all
 
 env:
-  ENVIRONMENT: staging
+  ENVIRONMENT: production
   DOMAIN: ${{ secrets.DOMAIN_STAGING }}
   SECRET_KEY: ${{ secrets.SECRET_KEY }}
   FIRST_SUPERUSER: ${{ secrets.FIRST_SUPERUSER }}
