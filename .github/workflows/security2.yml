@@ -140,7 +140,8 @@ jobs:
       - name: Show Database Logs (On Error)
         if: failure()
         run: docker compose logs db
-
+      - name: DEBUG - Show Backend Environment
+        run: docker compose exec -T backend env
       # Uruchamiamy skaner API
       - name: ZAP API Scan
         uses: zaproxy/action-api-scan@v0.7.0
