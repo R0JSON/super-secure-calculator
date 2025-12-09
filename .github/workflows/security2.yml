@@ -120,7 +120,7 @@ jobs:
           SECRET_KEY=super-secret-test-key-change-me
           FIRST_SUPERUSER=admin@example.com
           FIRST_SUPERUSER_PASSWORD=admin12345
-          BACKEND_CORS_ORIGINS=["http://localhost:3000", "http://localhost:8080"]
+          BACKEND_CORS_ORIGINS=["http://localhost:3000","http://localhost:8080"]
           FRONTEND_HOST=localhost
           FRONTEND_PORT=3000
           SENTRY_DSN=
