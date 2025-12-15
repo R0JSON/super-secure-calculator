@@ -1,5 +1,9 @@
 FROM python:3.10
 
+# 1. CIS 5.7: Create a non-root user for the application
+RUN groupadd --gid 1000 appgroup && \
+    useradd --uid 1000 --gid appgroup --shell /bin/bash --create-home appuser
+
 ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app/
@@ -27,17 +31,24 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --frozen --no-install-project
 
+# 2. CIS 4.6: Clean up package manager cache (This applies to the base Python image)
+RUN rm -rf /var/lib/apt/lists/*
+
 ENV PYTHONPATH=/app
 
-COPY ./scripts /app/scripts
+# 3. CIS 5.3: Ensure copied files are owned by the non-root user (appuser:appgroup)
+COPY --chown=appuser:appgroup ./scripts /app/scripts
 
-COPY ./pyproject.toml ./uv.lock ./alembic.ini /app/
+COPY --chown=appuser:appgroup ./pyproject.toml ./uv.lock ./alembic.ini /app/
 
-COPY ./app /app/app
+COPY --chown=appuser:appgroup ./app /app/app
 
 # Sync the project
 # Ref: https://docs.astral.sh/uv/guides/integration/docker/#intermediate-layers
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync
+
+# 1. CIS 5.7: Switch to the non-root user for the final command execution
+USER appuser
 
 CMD ["fastapi", "run", "--workers", "4", "app/main.py"]

@@ -13,6 +13,9 @@ COPY package*.json ./
 # Install dependencies
 RUN npm ci
 
+# 2. CIS 4.6 (Efficiency): Clear the npm cache after installing packages
+RUN npm cache clean --force
+
 # Copy the rest of the application's source code
 COPY . .
 
@@ -28,11 +31,14 @@ RUN npm run build
 # Use a lightweight Nginx image
 FROM nginx:stable-alpine
 
-# Copy the build output from the builder stage
-COPY --from=builder /app/dist /usr/share/nginx/html
+# 3. CIS 5.7 (Reliability): Copy the build output, ensuring the non-root 'nginx' user owns the files
+COPY --from=builder --chown=nginx:nginx /app/dist /usr/share/nginx/html
 
 # Copy our custom Nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# 1. CIS 5.7 (Security): Ensure the container is run as the non-root user
+USER nginx
 
 # Expose port 80 to the outside world
 EXPOSE 80
