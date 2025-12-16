@@ -2,6 +2,11 @@ services:
   db:
     image: postgres:17
     restart: always
+    # CIS 5.1: Not running in privileged mode
+    privileged: false
+    # CIS 4.2: Limit Memory (Set to your environment's needs, e.g., 2GB)
+    mem_limit: 2048m
+    # NOTE: user: not set. Official image runs as secure non-root user (postgres).
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -21,6 +26,12 @@ services:
   adminer:
     image: adminer
     restart: always
+    # CIS 5.7: Run as non-root user (Assumes UID 1000 is available/exists)
+    user: "1000"
+    # CIS 5.1: Not running in privileged mode
+    privileged: false
+    # CIS 4.2: Limit Memory (e.g., 128MB)
+    mem_limit: 128m
     ports:
       - 8081:8080
     depends_on:
@@ -31,6 +42,12 @@ services:
   prestart:
     build:
       context: ./backend
+    # CIS 5.7: Run as non-root user
+    user: "1000"
+    # CIS 5.1: Not running in privileged mode
+    privileged: false
+    # CIS 4.2: Limit Memory (e.g., 512MB)
+    mem_limit: 512m
     depends_on:
       db:
         condition: service_healthy
@@ -55,7 +72,13 @@ services:
 
   backend:
     restart: always
-    ports: 
+    # CIS 5.7: Run as non-root user
+    user: "1000"
+    # CIS 5.1: Not running in privileged mode
+    privileged: false
+    # CIS 4.2: Limit Memory (e.g., 1024MB)
+    mem_limit: 1024m
+    ports:
       - 8080:8000
     depends_on:
       db:
@@ -79,22 +102,29 @@ services:
       - POSTGRES_USER=${POSTGRES_USER?Variable not set}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
       - SENTRY_DSN=${SENTRY_DSN}
-
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/utils/health-check/"]
       interval: 10s
       timeout: 5s
       retries: 5
-
     build:
       context: ./backend
-    # ---- NEW FRONTEND SERVICE ----
+
   frontend:
     restart: always
-    # Build the image from the frontend directory
+    user: "nginx"
+    # CIS 5.1: Not running in privileged mode
+    privileged: false
+    # CIS 4.2: Limit Memory (e.g., 256MB)
+    mem_limit: 256m
+    tmpfs:
+      - /var/cache/nginx:rw,noexec,nosuid,uid=101,gid=101
+      - /var/run:rw,noexec,nosuid,uid=101,gid=101
+      - /var/tmp:rw,noexec,nosuid,uid=101,gid=101
+    # Build the image from frontend directory
     build:
       context: ./frontend
-      # Pass the API URL to the Dockerfile at build time
+      # pass the API URL to the Dockerfile at build time
       args:
         VITE_API_URL: http://localhost:${BACKEND_PORT:-8080}/api/v1
     ports:
@@ -107,8 +137,5 @@ volumes:
   app-db-data:
 
 networks:
-#   traefik-public:
-#     # Allow setting it to false for testing
-#     external: false 
   default:
-      driver: bridge
+    driver: bridge
