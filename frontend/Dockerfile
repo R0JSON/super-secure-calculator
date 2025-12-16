@@ -26,7 +26,6 @@ ENV VITE_API_URL=${VITE_API_URL}
 # Build the app for production
 RUN npm run build
 
-
 # ---- Stage 2: Serve the App with Nginx ----
 # Use a lightweight Nginx image
 FROM nginx:stable-alpine

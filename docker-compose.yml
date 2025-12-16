@@ -112,14 +112,15 @@ services:
 
   frontend:
     restart: always
+    user: "nginx"
     # CIS 5.1: Not running in privileged mode
     privileged: false
     # CIS 4.2: Limit Memory (e.g., 256MB)
     mem_limit: 256m
     tmpfs:
-      - /var/cache/nginx:rw,noexec,nosuid
-      - /var/run:rw,noexec,nosuid
-      - /var/tmp:rw,noexec,nosuid
+      - /var/cache/nginx:rw,noexec,nosuid,uid=101,gid=101
+      - /var/run:rw,noexec,nosuid,uid=101,gid=101
+      - /var/tmp:rw,noexec,nosuid,uid=101,gid=101
     # Build the image from frontend directory
     build:
       context: ./frontend
